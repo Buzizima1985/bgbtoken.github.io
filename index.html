@@ -3,109 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Официальный сайт токена BGB">
   <title>BGB Token</title>
   <style>
     body {
       margin: 0;
-      padding: 0;
-      background-image: url('bg.jpg');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      height: 100vh;
       font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: white;
+      background: url('bg.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #ffffff;
       text-align: center;
     }
-
+    .container {
+      margin-top: 80px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 30px;
+      border-radius: 12px;
+      display: inline-block;
+    }
     h1 {
-      font-size: 48px;
+      font-size: 42px;
       margin-bottom: 10px;
-      text-shadow: 2px 2px 5px black;
     }
-
     p {
-      font-size: 20px;
-      margin-bottom: 30px;
-      text-shadow: 1px 1px 4px black;
+      font-size: 18px;
+      margin-bottom: 20px;
     }
-
-    .button {
+    .btn {
+      background-color: #00c2ff;
+      border: none;
       padding: 12px 24px;
       margin: 10px;
-      border: none;
       border-radius: 8px;
-      background-color: #ff00cc;
-      background-image: linear-gradient(45deg, #ff00cc, #3333ff);
-      color: white;
       font-size: 16px;
+      color: #fff;
       cursor: pointer;
-      transition: 0.3s;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      text-decoration: none;
+      display: inline-block;
     }
-
-    .button:hover {
-      transform: scale(1.05);
-      opacity: 0.9;
-    }
-
-    @media (max-width: 600px) {
-      h1 {
-        font-size: 32px;
-      }
-
-      p {
-        font-size: 16px;
-      }
-
-      .button {
-        width: 80%;
-        font-size: 14px;
-      }
+    .btn:hover {
+      background-color: #0090c2;
     }
   </style>
 </head>
 <body>
-  <h1>BGB Token</h1>
-  <p>Официальный токен на Binance Smart Chain</p>
+  <div class="container">
+    <h1>BGB Token</h1>
+    <p>Добро пожаловать! Новый токен BGB уже доступен. Все пользователи получат 300 токенов вместо 100.</p>
 
-  <button class="button" onclick="window.open('https://t.me/Makkan1985', '_blank')">Связаться в Telegram</button>
-  <button class="button" onclick="window.open('https://bscscan.com/token/0x15Dc6CB7746c422F961D4e764492E028e46cdd25', '_blank')">Посмотреть на BscScan</button>
-  <button class="button" onclick="addToMetaMask()">Добавить токен в MetaMask</button>
+    <p><strong>Контракт токена:</strong></p>
+    <p style="font-size: 14px;">0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</p>
+
+    <a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" class="btn" target="_blank">Посмотреть на BscScan</a>
+    <a href="https://pancakeswap.finance/swap?outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" class="btn" target="_blank">Купить на PancakeSwap</a>
+    <a href="#" class="btn" onclick="addToMetaMask()">Добавить в MetaMask</a>
+  </div>
 
   <script>
     async function addToMetaMask() {
-      if (typeof window.ethereum === 'undefined') {
-        alert('MetaMask не найден. Пожалуйста, установите расширение.');
-        return;
-      }
-
       try {
-        const wasAdded = await ethereum.request({
+        await window.ethereum.request({
           method: 'wallet_watchAsset',
           params: {
             type: 'ERC20',
             options: {
-              address: '0x15Dc6CB7746c422F961D4e764492E028e46cdd25',
+              address: '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',
               symbol: 'BGB',
               decimals: 18,
-              image: 'https://bgbtoken.github.io/logo.png'
-            },
-          },
+              image: 'https://raw.githubusercontent.com/bgbtoken/assets/main/logo.png'
+            }
+          }
         });
-
-        if (wasAdded) {
-          alert('Токен BGB успешно добавлен в MetaMask!');
-        } else {
-          alert('Пользователь отклонил запрос.');
-        }
-      } catch (error) {
-        console.error(error);
-        alert('Ошибка при добавлении токена в MetaMask');
+      } catch (e) {
+        console.error(e);
       }
     }
   </script>
