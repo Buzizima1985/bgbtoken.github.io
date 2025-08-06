@@ -1,111 +1,87 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BGB Token Airdrop</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
     body {
-      font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #1e1e2f, #12121c);
+      font-family: Arial, sans-serif;
+      background: #0d0d0d;
       color: #fff;
-      line-height: 1.6;
-    }
-    header {
-      background-color: #00000088;
-      padding: 20px;
       text-align: center;
+      padding: 40px;
     }
-    header h1 {
+    h1 {
       font-size: 32px;
+      color: #00ffcc;
     }
-    .hero {
-      padding: 80px 20px;
-      text-align: center;
-      background: url('https://cryptologos.cc/logos/binance-coin-bnb-logo.png') no-repeat center center/cover;
-    }
-    .hero h1 {
-      font-size: 42px;
+    p {
+      font-size: 20px;
       margin-bottom: 20px;
     }
-    .hero p {
-      font-size: 20px;
-      margin-bottom: 30px;
-    }
-    .btn {
+    .button {
       display: inline-block;
-      padding: 12px 30px;
-      font-size: 18px;
-      background: #f7c400;
+      background-color: #00ffcc;
       color: #000;
-      border: none;
-      border-radius: 8px;
+      padding: 12px 24px;
+      margin: 10px;
+      font-size: 16px;
       text-decoration: none;
-      transition: background 0.3s ease;
+      border-radius: 8px;
+      transition: background-color 0.3s ease;
     }
-    .btn:hover {
-      background: #ffd700;
+    .button:hover {
+      background-color: #00ccaa;
     }
-    .section {
-      padding: 60px 20px;
-      text-align: center;
-    }
-    footer {
-      padding: 20px;
-      text-align: center;
+    code {
       background: #111;
-      color: #777;
-    }
-    a {
-      color: #f7c400;
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
+  <h1>🚀 Airdrop токена BGB</h1>
+  <p>🔥 Получите <strong>300 BGB</strong> бесплатно прямо сейчас!</p>
+  
+  <p>💎 Контракт токена:</p>
+  <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
 
-<header>
-  <h1>BGB TOKEN</h1>
-</header>
-
-<section class="hero">
-  <div class="container">
-    <h1>Добро пожаловать в BGB Token Airdrop</h1>
-    <p>Получите <strong>300 BGB</strong> токенов за участие в нашей раздаче. Просто подключите свой кошелек и следуйте инструкциям!</p>
-    <a href="#airdrop" class="btn">Участвовать</a>
+  <div style="margin-top: 20px;">
+    <a class="button" href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">🔍 Смотреть на BSCScan</a>
+    <a class="button" href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
+    <a class="button" href="https://pancakeswap.finance/swap?outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">🔄 Купить на PancakeSwap</a>
   </div>
-</section>
 
-<section class="section" id="airdrop">
-  <h2>Как получить токены?</h2>
-  <p>1. Подпишитесь на наш Telegram: <a href="https://t.me/Makkan1985" target="_blank">@Makkan1985</a></p>
-  <p>2. Вставьте свой BEP-20 адрес</p>
-  <p>3. Получите <strong>300 BGB</strong> на свой кошелёк</p>
-</section>
+  <div style="margin-top: 30px;">
+    <a class="button" href="#" onclick="addToMetaMask()">🦊 Добавить в MetaMask</a>
+    <a class="button" href="https://trustwallet.com/add_custom_token" target="_blank">🛡 Добавить в TrustWallet</a>
+  </div>
 
-<section class="section">
-  <h2>О токене</h2>
-  <p>BGB — это новый токен на Binance Smart Chain, созданный для комьюнити, с ограниченной эмиссией и прозрачной экономикой.</p>
-</section>
-
-<section class="section">
-  <h2>Контракт</h2>
-  <p>Адрес токена:  
-    <a href="https://bscscan.com/token/0x15Dc6CB7746c422F961D4e764492E028e46cdd25" target="_blank">
-      0x15Dc6CB7746c422F961D4e764492E028e46cdd25
-    </a>
-  </p>
-</section>
-
-<footer>
-  <p>&copy; 2025 BGB Token. Все права защищены.</p>
-</footer>
-
+  <script>
+    async function addToMetaMask() {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_watchAsset',
+          params: {
+            type: 'ERC20',
+            options: {
+              address: '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',
+              symbol: 'BGB',
+              decimals: 18,
+              image: 'https://buzizima1985.github.io/bgbtoken.github.io/logo.png'
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Ошибка добавления токена:', error);
+        alert('Ошибка: убедитесь, что MetaMask установлен.');
+      }
+    }
+  </script>
 </body>
 </html>
-
