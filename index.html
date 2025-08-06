@@ -4,81 +4,101 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>BGB Token Airdrop</title>
-  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="logo.png" />
   <style>
-    body {
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+
+    body, html {
       margin: 0;
       padding: 0;
-      background-image: url('photo_2_2025-08-05_23-57-02.jpg');
+      font-family: 'Orbitron', sans-serif;
+      color: white;
+      background: url('photo_2_2025-08-05_23-57-02.jpg') no-repeat center center fixed;
       background-size: cover;
-      background-position: center;
-      font-family: Arial, sans-serif;
-      color: #fff;
-      text-align: center;
+      height: 100vh;
     }
 
     .overlay {
-      background-color: rgba(0, 0, 0, 0.65);
-      padding: 50px 20px;
-      min-height: 100vh;
+      background: rgba(0, 0, 0, 0.75);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
     }
 
     h1 {
-      font-size: 48px;
+      font-size: 60px;
       margin-bottom: 20px;
+      background: linear-gradient(90deg, #ff0000, #ffcc00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     p {
-      font-size: 20px;
+      font-size: 22px;
       margin-bottom: 30px;
+      color: #f0f0f0;
     }
 
     .buttons a {
+      text-decoration: none;
       display: inline-block;
       margin: 10px;
-      padding: 15px 25px;
-      background-color: #e60000;
-      color: white;
-      text-decoration: none;
+      padding: 14px 24px;
+      background: red;
+      border-radius: 12px;
+      color: #fff;
       font-size: 18px;
-      border-radius: 8px;
-      transition: background 0.3s ease;
+      font-weight: bold;
+      box-shadow: 0 4px 15px rgba(255, 0, 0, 0.5);
+      transition: 0.3s;
     }
 
     .buttons a:hover {
-      background-color: #cc0000;
+      background: #cc0000;
+      transform: scale(1.05);
     }
 
     .contract {
       margin-top: 30px;
+      background: rgba(255,255,255,0.1);
+      padding: 15px 20px;
+      border-radius: 10px;
       font-size: 16px;
       word-break: break-all;
-      background: rgba(255, 255, 255, 0.1);
-      padding: 15px;
-      border-radius: 10px;
     }
 
     footer {
-      margin-top: 40px;
+      margin-top: 30px;
       font-size: 14px;
-      color: #aaa;
+      color: #bbb;
+    }
+
+    @media(max-width: 600px) {
+      h1 { font-size: 42px; }
+      p { font-size: 18px; }
+      .buttons a { font-size: 16px; padding: 12px 20px; }
     }
   </style>
 </head>
 <body>
   <div class="overlay">
-    <h1>BGB Token Airdrop</h1>
-    <p>🎁 Получи <strong>300 BGB</strong> на свой кошелёк прямо сейчас!</p>
+    <h1>BGB Token</h1>
+    <p>🎁 Получи <strong>300 BGB</strong> прямо сейчас на свой кошелёк</p>
+
     <div class="buttons">
       <a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">📄 BSC Scan</a>
       <a href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
-      <a href="#" onclick="addToMetaMask()">➕ Добавить в MetaMask</a>
-      <a href="trust://browser_enable" target="_blank">🔓 Открыть в TrustWallet</a>
+      <a href="#" onclick="addToMetaMask()">🦊 Добавить в MetaMask</a>
+      <a href="trust://browser_enable" target="_blank">🔓 TrustWallet</a>
     </div>
 
     <div class="contract">
-      Контракт токена: <br>
-      <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
+      Контракт: <br> <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
     </div>
 
     <footer>
@@ -101,9 +121,8 @@
             },
           },
         });
-      } catch (error) {
-        console.error(error);
-        alert("MetaMask не найден или произошла ошибка.");
+      } catch (e) {
+        alert("MetaMask не обнаружен или отклонено.");
       }
     }
   </script>
