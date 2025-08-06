@@ -1,65 +1,89 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>BGB Token Airdrop</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
   <style>
     body {
+      margin: 0;
+      padding: 0;
+      background-image: url('A_digital_graphic_design_features_the_logo_for_"BG.png');
+      background-size: cover;
+      background-position: center;
       font-family: Arial, sans-serif;
-      background: #0d0d0d;
       color: #fff;
       text-align: center;
-      padding: 40px;
     }
+
+    .overlay {
+      background-color: rgba(0, 0, 0, 0.65);
+      padding: 50px 20px;
+      min-height: 100vh;
+    }
+
     h1 {
-      font-size: 32px;
-      color: #00ffcc;
-    }
-    p {
-      font-size: 20px;
+      font-size: 48px;
       margin-bottom: 20px;
     }
-    .button {
+
+    p {
+      font-size: 20px;
+      margin-bottom: 30px;
+    }
+
+    .buttons a {
       display: inline-block;
-      background-color: #00ffcc;
-      color: #000;
-      padding: 12px 24px;
       margin: 10px;
-      font-size: 16px;
+      padding: 15px 25px;
+      background-color: #ff9900;
+      color: white;
       text-decoration: none;
+      font-size: 18px;
       border-radius: 8px;
-      transition: background-color 0.3s ease;
+      transition: background 0.3s ease;
     }
-    .button:hover {
-      background-color: #00ccaa;
+
+    .buttons a:hover {
+      background-color: #e68300;
     }
-    code {
-      background: #111;
-      padding: 6px 12px;
-      border-radius: 6px;
-      display: inline-block;
-      margin-top: 10px;
+
+    .contract {
+      margin-top: 30px;
+      font-size: 16px;
+      word-break: break-all;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    footer {
+      margin-top: 40px;
       font-size: 14px;
+      color: #aaa;
     }
   </style>
 </head>
 <body>
-  <h1>🚀 Airdrop токена BGB</h1>
-  <p>🔥 Получите <strong>300 BGB</strong> бесплатно прямо сейчас!</p>
-  
-  <p>💎 Контракт токена:</p>
-  <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
+  <div class="overlay">
+    <h1>BGB Token Airdrop</h1>
+    <p>🎁 Получи <strong>300 BGB</strong> на свой кошелёк прямо сейчас!</p>
+    <div class="buttons">
+      <a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">📄 BSC Scan</a>
+      <a href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
+      <a href="#" onclick="addToMetaMask()">➕ Добавить в MetaMask</a>
+      <a href="trust://browser_enable" target="_blank">🔓 Открыть в TrustWallet</a>
+    </div>
 
-  <div style="margin-top: 20px;">
-    <a class="button" href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">🔍 Смотреть на BSCScan</a>
-    <a class="button" href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
-    <a class="button" href="https://pancakeswap.finance/swap?outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">🔄 Купить на PancakeSwap</a>
-  </div>
+    <div class="contract">
+      Контракт токена: <br>
+      <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
+    </div>
 
-  <div style="margin-top: 30px;">
-    <a class="button" href="#" onclick="addToMetaMask()">🦊 Добавить в MetaMask</a>
-    <a class="button" href="https://trustwallet.com/add_custom_token" target="_blank">🛡 Добавить в TrustWallet</a>
+    <footer>
+      &copy; 2025 BGB Token. Все права защищены.
+    </footer>
   </div>
 
   <script>
@@ -73,13 +97,13 @@
               address: '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',
               symbol: 'BGB',
               decimals: 18,
-              image: 'https://buzizima1985.github.io/bgbtoken.github.io/logo.png'
-            }
-          }
+              image: 'https://buzizima1985.github.io/bgbtoken.github.io/logo.png' // сюда можно вставить логотип
+            },
+          },
         });
       } catch (error) {
-        console.error('Ошибка добавления токена:', error);
-        alert('Ошибка: убедитесь, что MetaMask установлен.');
+        console.error(error);
+        alert("MetaMask не найден или произошла ошибка.");
       }
     }
   </script>
