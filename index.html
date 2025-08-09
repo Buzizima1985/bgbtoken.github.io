@@ -75,6 +75,23 @@
       font-size: 16px;
     }
 
+    /* Новый стиль таймера */
+    .lock-info {
+      margin-top: 25px;
+      padding: 15px 20px;
+      background-color: rgba(255, 215, 0, 0.15);
+      border-radius: 10px;
+      color: #FFD700;
+      font-size: 18px;
+    }
+
+    .timer {
+      font-size: 22px;
+      font-weight: bold;
+      color: #00ff88;
+      margin-top: 10px;
+    }
+
     footer {
       margin-top: 30px;
       color: #aaa;
@@ -105,6 +122,13 @@
       <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
     </div>
 
+    <!-- Новый блок таймера -->
+    <div class="lock-info">
+      🔒 Заблокировано <strong>14 300 BGB</strong> на 3 года<br>
+      Дата начала блокировки: 06.08.2025 11:58:39 UTC
+      <div class="timer" id="countdown">Загрузка таймера...</div>
+    </div>
+
     <footer>
       © 2025 BGB Token. Все права защищены.
     </footer>
@@ -129,6 +153,32 @@
         alert('MetaMask не обнаружен или отказано пользователем.');
       }
     }
+
+    // Таймер обратного отсчёта
+    const startDate = new Date(Date.UTC(2025, 7, 6, 11, 58, 39)); // месяц 7 = август
+    const endDate = new Date(startDate);
+    endDate.setFullYear(endDate.getFullYear() + 3);
+
+    function updateCountdown() {
+      const now = new Date();
+      const diff = endDate - now;
+
+      if (diff <= 0) {
+        document.getElementById("countdown").innerHTML = "⏳ Блокировка закончена";
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      document.getElementById("countdown").innerHTML =
+        `${days}д ${hours}ч ${minutes}м ${seconds}с`;
+    }
+
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
   </script>
 </body>
 </html>
