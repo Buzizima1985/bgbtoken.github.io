@@ -50,7 +50,6 @@
       border-radius:10px; color:#FFD700; font-size:18px;
     }
     .timer{ font-size:22px; font-weight:700; color:#00ff88; margin-top:10px; }
-
     .hint { margin-top:6px; font-size:12px; color:#9aa0a6; }
 
     footer{ margin-top:30px; color:#aaa; font-size:14px; }
@@ -70,8 +69,8 @@
     <div class="buttons">
       <a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">📄 BSC Scan</a>
       <a href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
-      <a href="#" onclick="addToMetaMask()">🦊 MetaMask</a>
-      <a href="trust://browser_enable" target="_blank">🔓 TrustWallet</a>
+      <a href="#" onclick="handleMetaMask(event)">🦊 MetaMask</a>
+      <a href="#" onclick="handleTrust(event)">🔓 TrustWallet</a>
     </div>
 
     <div class="contract">
@@ -94,58 +93,104 @@
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
 
   <script>
-    async function addToMetaMask() {
-      try {
-        await window.ethereum?.request({
-          method: 'wallet_watchAsset',
-          params: {
-            type: 'ERC20',
-            options: {
-              address: '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',
-              symbol: 'BGB',
-              decimals: 18,
-              image: 'https://buzizima1985.github.io/bgbtoken.github.io/logo.png'
-            }
-          }
-        });
-      } catch (e) { alert('MetaMask не обнаружен или отказано пользователем.'); }
+    // ===== MetaMask: добавить токен или отправить на установку =====
+    async function handleMetaMask(e) {
+      e?.preventDefault?.();
+      const token = {
+        address: '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',
+        symbol: 'BGB',
+        decimals: 18,
+        image: 'https://buzizima1985.github.io/bgbtoken.github.io/logo.png'
+      };
+
+      if (window.ethereum && window.ethereum.request) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_watchAsset',
+            params: { type: 'ERC20', options: token }
+          });
+        } catch (err) {
+          console.error(err);
+          alert('Не удалось добавить токен в MetaMask.');
+        }
+      } else {
+        window.open('https://metamask.io/download/', '_blank');
+      }
+    }
+
+    // ===== Trust Wallet: открыть DApp или отправить на установку =====
+    function handleTrust(e) {
+      e?.preventDefault?.();
+
+      const ua = navigator.userAgent || '';
+      const isAndroid = /Android/i.test(ua);
+      const isIOS     = /iPhone|iPad|iPod/i.test(ua);
+
+      // универсальная ссылка Trust Wallet на открытие нашего сайта в приложении
+      const dappUrl = encodeURIComponent(window.location.href);
+      const trustOpen = `https://link.trustwallet.com/open_url?source=dapp&url=${dappUrl}`;
+
+      if (isAndroid) {
+        window.location.href = trustOpen;
+        // резерв: открыть Google Play, если приложение не установлено
+        setTimeout(() => {
+          window.open('https://play.google.com/store/apps/details?id=com.wallet.crypto.trustapp', '_blank');
+        }, 1200);
+        return;
+      }
+
+      if (isIOS) {
+        // На iOS встроенный браузер DApp убран — даём установку + подсказку
+        window.open('https://apps.apple.com/app/trust-crypto-bitcoin-wallet/id1288339409', '_blank');
+        alert('На iOS откройте наш сайт через Trust Wallet (раздел Browser/WalletConnect).');
+        return;
+      }
+
+      // Десктоп
+      window.open('https://trustwallet.com/download', '_blank');
     }
 
     // ======= АВТО-ТАМЕР ИЗ БЛОКА =======
     (function(){
-      // Tx hash транзакции «lock» (со скрина BscScan)
+      // Tx hash транзакции «lock» (со скрина BscScan — 06.08.2025 12:03:45 UTC)
       const LOCK_TX_HASH = '0xabd8b15bebce8b05ee64dbd876fb8b30f870e237aae78f181e367a1b9e9ea5';
       const LOCK_YEARS = 3;
+
+      // несколько RPC на случай недоступности узла
       const RPCS = [
         'https://bsc-dataseed.binance.org/',
         'https://bsc-dataseed1.binance.org/',
-        'https://bsc-dataseed2.binance.org/'
+        'https://bsc-dataseed2.binance.org/',
+        'https://bsc-dataseed3.binance.org/'
       ];
 
       const $ = id => document.getElementById(id);
       const pad2 = n => String(n).padStart(2,'0');
       const fmtUTC = ts => {
         const d = new Date(ts);
-        return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth()+1)}.${d.getUTCFullYear()} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
+        return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth()+1)}.${d.getUTCFullYear()} `+
+               `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
       };
 
-      // Кешируем timestamp, чтобы не дёргать RPC при каждом заходе
+      // кеш timestamp на 24ч, чтобы не дёргать RPC каждый визит
       const CACHE_KEY = 'bgb_lock_start_ms_v1';
 
       async function fetchStartMs() {
-        // 1) из кеша (если моложе суток)
         try {
           const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
           if (cached && (Date.now() - cached.savedAt) < 24*3600*1000) return cached.startMs;
         } catch {}
 
-        // 2) с RPC (несколько попыток)
         let lastErr;
         for (const url of RPCS) {
           try {
             const provider = new ethers.JsonRpcProvider(url, { staticNetwork: { chainId: 56 } });
+            // Проверка соединения
+            await provider.getBlockNumber();
+            // Квитанция по транзакции lock
             const rcpt = await provider.getTransactionReceipt(LOCK_TX_HASH);
             if (!rcpt) throw new Error('Receipt not found');
+            // Сам блок, чтобы взять точный timestamp (UTC)
             const block = await provider.getBlock(rcpt.blockNumber);
             if (!block) throw new Error('Block not found');
             const startMs = Number(block.timestamp) * 1000;
@@ -176,14 +221,14 @@
       (async () => {
         try {
           $('lock-hint').textContent = 'Синхронизация с блокчейном BSC…';
-          const startMs = await fetchStartMs();               // фактическое начало (UTC)
+          const startMs = await fetchStartMs();            // фактическое начало (UTC)
           $('lock-start').textContent = fmtUTC(startMs);
 
           const end = new Date(startMs);
           end.setUTCFullYear(end.getUTCFullYear() + LOCK_YEARS);
           const unlockTs = end.getTime();
 
-          $('lock-hint').textContent = ''; // убираем подпись после синхры
+          $('lock-hint').textContent = '';                 // убираем подсказку после синхры
           runCountdown(unlockTs);
         } catch (e) {
           console.error(e);
@@ -195,4 +240,3 @@
   </script>
 </body>
 </html>
-
