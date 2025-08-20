@@ -71,6 +71,8 @@
       <a href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
       <a href="#" onclick="handleMetaMask(event)">🦊 MetaMask</a>
       <a href="#" onclick="handleTrust(event)">🔓 TrustWallet</a>
+      <!-- Новая кнопка: добавление ликвидности в пул WBNB/BGB -->
+      <a href="#" onclick="openAddLiquidity(event)">💧 Add Liquidity</a>
     </div>
 
     <div class="contract">
@@ -126,13 +128,11 @@
       const isAndroid = /Android/i.test(ua);
       const isIOS     = /iPhone|iPad|iPod/i.test(ua);
 
-      // универсальная ссылка Trust Wallet на открытие нашего сайта в приложении
       const dappUrl = encodeURIComponent(window.location.href);
       const trustOpen = `https://link.trustwallet.com/open_url?source=dapp&url=${dappUrl}`;
 
       if (isAndroid) {
         window.location.href = trustOpen;
-        // резерв: открыть Google Play, если приложение не установлено
         setTimeout(() => {
           window.open('https://play.google.com/store/apps/details?id=com.wallet.crypto.trustapp', '_blank');
         }, 1200);
@@ -140,14 +140,23 @@
       }
 
       if (isIOS) {
-        // На iOS встроенный браузер DApp убран — даём установку + подсказку
         window.open('https://apps.apple.com/app/trust-crypto-bitcoin-wallet/id1288339409', '_blank');
-        alert('На iOS откройте наш сайт через Trust Wallet (раздел Browser/WalletConnect).');
+        alert('На iOS откройте сайт через Trust Wallet (раздел Browser/WalletConnect).');
         return;
       }
 
-      // Десктоп
       window.open('https://trustwallet.com/download', '_blank');
+    }
+
+    // ===== Кнопка Add Liquidity: открыть страницу добавления ликвидности в PancakeSwap (BSC) =====
+    function openAddLiquidity(e) {
+      e?.preventDefault?.();
+      // Прямой линк на добавление ликвидности в пул BNB/BGB (v2 UI у PancakeSwap всё ещё активен)
+      const addV3 = 'https://pancakeswap.finance/add/BNB/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C?chain=bsc';
+      const addV2 = 'https://pancakeswap.finance/v2/add/BNB/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C?chain=bsc&persistChain=1';
+      // Сначала пробуем актуальную ссылку, если не откроется — у пользователя остаётся альтернативная вкладка v2
+      window.open(addV3, '_blank');
+      setTimeout(() => { window.open(addV2, '_blank'); }, 300);
     }
 
     // ======= АВТО-ТАМЕР ИЗ БЛОКА =======
@@ -185,12 +194,9 @@
         for (const url of RPCS) {
           try {
             const provider = new ethers.JsonRpcProvider(url, { staticNetwork: { chainId: 56 } });
-            // Проверка соединения
-            await provider.getBlockNumber();
-            // Квитанция по транзакции lock
+            await provider.getBlockNumber(); // проверка соединения
             const rcpt = await provider.getTransactionReceipt(LOCK_TX_HASH);
             if (!rcpt) throw new Error('Receipt not found');
-            // Сам блок, чтобы взять точный timestamp (UTC)
             const block = await provider.getBlock(rcpt.blockNumber);
             if (!block) throw new Error('Block not found');
             const startMs = Number(block.timestamp) * 1000;
@@ -240,3 +246,4 @@
   </script>
 </body>
 </html>
+
