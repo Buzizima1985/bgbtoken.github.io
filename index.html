@@ -51,6 +51,8 @@
     }
     .timer{ font-size:22px; font-weight:700; color:#00ff88; margin-top:10px; }
 
+    .hint { margin-top:6px; font-size:12px; color:#9aa0a6; }
+
     footer{ margin-top:30px; color:#aaa; font-size:14px; }
 
     @media (max-width:600px){
@@ -77,15 +79,19 @@
       <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
     </div>
 
-    <!-- Таймер блокировки -->
+    <!-- Таймер блокировки (время берём из блока по Tx hash) -->
     <div class="lock-info">
       🔒 Заблокировано <strong>14 300 BGB</strong> на 3 года<br>
-      Дата начала блокировки: 06.08.2025 11:58:39 UTC
-      <div class="timer" id="countdown">Загрузка таймера...</div>
+      Дата начала блокировки: <span id="lock-start">загрузка…</span> UTC
+      <div class="timer" id="countdown">Загрузка таймера…</div>
+      <div class="hint" id="lock-hint"></div>
     </div>
 
     <footer>© 2025 BGB Token. Все права защищены.</footer>
   </div>
+
+  <!-- Ethers для чтения блока -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
 
   <script>
     async function addToMetaMask() {
@@ -102,44 +108,89 @@
             }
           }
         });
-      } catch (e) {
-        alert('MetaMask не обнаружен или отказано пользователем.');
-      }
+      } catch (e) { alert('MetaMask не обнаружен или отказано пользователем.'); }
     }
 
-    // ✅ Надёжный таймер: UTC, без дрейфа и сбросов
+    // ======= АВТО-ТАМЕР ИЗ БЛОКА =======
     (function(){
-      const START_ISO = '2025-08-06T11:58:39Z'; // 06.08.2025 11:58:39 UTC
+      // Tx hash транзакции «lock» (со скрина BscScan)
+      const LOCK_TX_HASH = '0xabd8b15bebce8b05ee64dbd876fb8b30f870e237aae78f181e367a1b9e9ea5';
       const LOCK_YEARS = 3;
+      const RPCS = [
+        'https://bsc-dataseed.binance.org/',
+        'https://bsc-dataseed1.binance.org/',
+        'https://bsc-dataseed2.binance.org/'
+      ];
 
-      const startUTC = new Date(START_ISO);
-      const endUTC = new Date(startUTC);
-      endUTC.setUTCFullYear(endUTC.getUTCFullYear() + LOCK_YEARS);
-      const UNLOCK_TS = endUTC.getTime(); // цель в миллисекундах UTC
-
-      const el = document.getElementById('countdown');
+      const $ = id => document.getElementById(id);
       const pad2 = n => String(n).padStart(2,'0');
+      const fmtUTC = ts => {
+        const d = new Date(ts);
+        return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth()+1)}.${d.getUTCFullYear()} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
+      };
 
-      function render() {
-        const now = Date.now();
-        let diff = UNLOCK_TS - now;
+      // Кешируем timestamp, чтобы не дёргать RPC при каждом заходе
+      const CACHE_KEY = 'bgb_lock_start_ms_v1';
 
-        if (diff <= 0) { el.textContent = '⏳ Блокировка закончена'; return; }
+      async function fetchStartMs() {
+        // 1) из кеша (если моложе суток)
+        try {
+          const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+          if (cached && (Date.now() - cached.savedAt) < 24*3600*1000) return cached.startMs;
+        } catch {}
 
-        const totalSec = Math.floor(diff / 1000);
-        const d = Math.floor(totalSec / 86400);
-        const h = Math.floor((totalSec % 86400) / 3600);
-        const m = Math.floor((totalSec % 3600) / 60);
-        const s = totalSec % 60;
-
-        el.textContent = `${d}д ${pad2(h)}ч ${pad2(m)}м ${pad2(s)}с`;
+        // 2) с RPC (несколько попыток)
+        let lastErr;
+        for (const url of RPCS) {
+          try {
+            const provider = new ethers.JsonRpcProvider(url, { staticNetwork: { chainId: 56 } });
+            const rcpt = await provider.getTransactionReceipt(LOCK_TX_HASH);
+            if (!rcpt) throw new Error('Receipt not found');
+            const block = await provider.getBlock(rcpt.blockNumber);
+            if (!block) throw new Error('Block not found');
+            const startMs = Number(block.timestamp) * 1000;
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ startMs, savedAt: Date.now() }));
+            return startMs;
+          } catch (e) { lastErr = e; }
+        }
+        throw lastErr || new Error('RPC unavailable');
       }
 
-      let timerId;
-      function start() { clearInterval(timerId); render(); timerId = setInterval(render, 1000); }
+      function runCountdown(unlockTs) {
+        const el = $('countdown');
+        function render() {
+          const diff = unlockTs - Date.now();
+          if (diff <= 0) { el.textContent = '⏳ Блокировка закончена'; return; }
+          const sec = Math.floor(diff / 1000);
+          const d = Math.floor(sec / 86400);
+          const h = Math.floor((sec % 86400) / 3600);
+          const m = Math.floor((sec % 3600) / 60);
+          const s = sec % 60;
+          el.textContent = `${d}д ${pad2(h)}ч ${pad2(m)}м ${pad2(s)}с`;
+        }
+        let id; const start = () => { clearInterval(id); render(); id = setInterval(render, 1000); };
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
+        start();
+      }
 
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
-      start();
+      (async () => {
+        try {
+          $('lock-hint').textContent = 'Синхронизация с блокчейном BSC…';
+          const startMs = await fetchStartMs();               // фактическое начало (UTC)
+          $('lock-start').textContent = fmtUTC(startMs);
+
+          const end = new Date(startMs);
+          end.setUTCFullYear(end.getUTCFullYear() + LOCK_YEARS);
+          const unlockTs = end.getTime();
+
+          $('lock-hint').textContent = ''; // убираем подпись после синхры
+          runCountdown(unlockTs);
+        } catch (e) {
+          console.error(e);
+          $('lock-hint').textContent = 'Не удалось получить время блокировки (RPC недоступен). Пожалуйста, обновите страницу позже.';
+          $('countdown').textContent = '—';
+        }
+      })();
     })();
   </script>
 </body>
