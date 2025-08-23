@@ -1,426 +1,186 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BGB Token Airdrop</title>
-  <link rel="icon" href="logo.png" />
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
+<script>
+// ===== Miner (browser-only, fast + stable, chained blocks, retarget) =====
+(function(){
+  const KEY = 'bgb_btclike_miner_keccak_v1';
+  const BASE_RATE = 5n * 10n**16n;   // 0.05 BGB/sec (визуальный темп)
+  const UNIT = 30n * 10n**18n;       // 30 BGB порог выплаты
+  const BLOCK_TARGET_TIME = 10;      // целевое время блока (сек)
+  const RETARGET_INTERVAL = 20;      // пересчёт сложности каждые N блоков
+  const MAX_BLOCKS_VIEW = 200;
 
-    * { margin:0; padding:0; box-sizing:border-box; }
+  let st = {
+    addr: null,
+    running: false,
+    lastMs: Date.now(),
+    accrued: 0n,
+    bits: 0x1f00ffff,   // компактная сложность (как в BTC, но для UI)
+    height: 0,
+    chain: [],          // [{idx,time,bits,nonce,prev,hash}]
+    session: rndHex(16)
+  };
 
-    body, html {
-      height:100%;
-      font-family:'Orbitron', sans-serif;
-      background:url('photo_2_2025-08-05_23-57-02.jpg') no-repeat center center fixed;
-      background-size:cover;
+  // --- storage ---
+  function load(){ try{ const x = JSON.parse(localStorage.getItem(KEY)||'null'); if(x){ st = Object.assign(st,x); if(typeof st.accrued==='string') st.accrued = BigInt(st.accrued); } }catch{} }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify({...st, accrued: st.accrued.toString()})); }catch{} }
+
+  // --- utils ---
+  function rndHex(n){ const a=new Uint8Array(n); (crypto.getRandomValues?crypto.getRandomValues(a):a.fill(0)); return Array.from(a,x=>x.toString(16).padStart(2,'0')).join(''); }
+  function fmtBGB(big, dp=4){ const d=10n**18n; const i=big/d; const f=(big%d).toString().padStart(18,'0').slice(0,dp); return `${i}.${f}`; }
+  function k256str(s){ return ethers.keccak256(ethers.toUtf8Bytes(s)); } // синхронно и надёжно
+
+  // bits <-> target (упрощённо, для UI)
+  function compactToTarget(bits){
+    const exp  = (bits >>> 24) & 0xff;
+    const mant = bits & 0x007fffff;
+    let target = BigInt(mant);
+    const shift = 8*(exp-3);
+    target = shift>=0 ? target * (1n<<BigInt(shift)) : target / (1n<<BigInt(-shift));
+    return target;
+  }
+  function targetToCompact(target){
+    let exp=3, t=BigInt(target);
+    while(t > 0x007fffffn){ t >>= 8n; exp++; }
+    const mant = Number(t & 0x007fffffn);
+    return ((exp & 0xff) << 24) | mant;
+  }
+  function currentTarget(){ return compactToTarget(st.bits); }
+
+  // --- render ---
+  const $ = id => document.getElementById(id);
+  function render(){
+    $('sm-addr').textContent   = st.addr ? `${st.addr.slice(0,6)}…${st.addr.slice(-4)}` : '—';
+    $('sm-height').textContent = st.height;
+    $('sm-acc').textContent    = fmtBGB(st.accrued,4);
+    $('sm-bits').textContent   = '0x'+st.bits.toString(16);
+    $('sm-target').textContent = '0x'+currentTarget().toString(16).slice(0,16)+'…';
+    $('sm-last').textContent   = st.height ? st.chain.at(-1).hash.slice(0,10)+'…' : '—';
+    const nrt = RETARGET_INTERVAL - (st.height % RETARGET_INTERVAL || RETARGET_INTERVAL);
+    $('sm-retarget').textContent = nrt;
+
+    const pct = Math.min(100, Number(st.accrued * 100n / UNIT));
+    $('sm-bar').style.width = pct + '%';
+
+    // «хешрейт» просто стабильно отображаем как число (визуальный)
+    const hr = Number(BASE_RATE / 10n**14n)/100; // 2 знака
+    $('sm-hr').textContent = `${hr.toFixed(2)} BGB/s`;
+
+    const list = $('sm-chain');
+    if(!list.hasAttribute('hidden')){
+      list.innerHTML = st.chain.slice(-MAX_BLOCKS_VIEW).map(b =>
+        `<div>#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`
+      ).reverse().join('');
     }
+  }
 
-    .overlay{
-      background-color:rgba(0,0,0,0.75);
-      height:100%; width:100%;
-      display:flex; flex-direction:column; justify-content:center; align-items:center;
-      text-align:center; padding:30px;
-    }
+  // --- mining (sync, без WebCrypto) ---
+  function mineBatch(){
+    const prev   = st.height ? st.chain.at(-1).hash : '0x'+'00'.repeat(32);
+    const target = currentTarget();
+    const tries  = 512; // сколько нонсов пробуем за тик
+    const nowSec = Math.floor(Date.now()/1000);
 
-    h1{
-      font-size:64px;
-      background:linear-gradient(to right, red, orange);
-      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-      margin-bottom:20px;
-    }
-
-    p{ font-size:24px; color:#fff; margin-bottom:30px; }
-
-    .buttons a, .buttons button{
-      text-decoration:none; display:inline-block; margin:10px; padding:15px 28px;
-      background:#e60000; border-radius:10px; color:#fff; font-weight:bold; font-size:18px;
-      box-shadow:0 0 10px #e60000; transition:.3s ease-in-out; border:none; cursor:pointer;
-    }
-    .buttons a:hover, .buttons button:hover{ background:#cc0000; transform:scale(1.05); }
-
-    .contract{
-      background:rgba(255,255,255,.15); color:#fff; margin-top:30px; padding:15px 20px;
-      border-radius:10px; font-size:16px;
-    }
-
-    .lock-info{
-      margin-top:25px; padding:15px 20px; background:rgba(255,215,0,.15);
-      border-radius:10px; color:#FFD700; font-size:18px;
-    }
-    .timer{ font-size:22px; font-weight:700; color:#00ff88; margin-top:10px; }
-    .hint { margin-top:6px; font-size:12px; color:#9aa0a6; }
-
-    footer{ margin-top:30px; color:#aaa; font-size:14px; }
-
-    @media (max-width:600px){
-      h1{ font-size:40px; }
-      p{ font-size:18px; }
-      .buttons a, .buttons button{ font-size:16px; padding:12px 20px; }
-    }
-      /* --- Simulated Miner Card --- */
-    .miner-card{margin-top:18px;background:rgba(255,255,255,.12);padding:16px 18px;border-radius:20px;color:#fff;display:inline-block;max-width:900px}
-    .miner-card .hdr{font-weight:800;font-size:18px;margin-bottom:8px}
-    .miner-card .row{font-size:14px;opacity:.9;margin:4px 0}
-    .miner-card .acc{font-size:20px;margin:10px 0}
-    .miner-card .bar{height:8px;background:#ffffff26;border-radius:999px;overflow:hidden}
-    .miner-card #sm-bar{height:100%;width:0%;background:#00ff88}
-    .miner-card .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-    .miner-card button{ text-decoration:none; display:inline-block; padding:12px 22px; background:#e60000; border-radius:10px; color:#fff; font-weight:bold; font-size:16px; box-shadow:0 0 10px #e60000; transition:.3s ease-in-out; border:none; cursor:pointer; }
-    .miner-card button:hover{ background:#cc0000; transform:scale(1.05); }
-    .miner-card .hint{font-size:12px;opacity:.8;margin-top:6px}
-    .shares-list{font-family:monospace;font-size:12px;max-height:120px;overflow:auto;background:rgba(0,0,0,.25);padding:8px;border-radius:10px;margin-top:6px}
-  </style>
-</head>
-<body>
-  <div class="overlay">
-    <h1>BGB Token</h1>
-    <p>🎁 Получи <strong>300 BGB</strong> прямо сейчас на свой кошелёк</p>
-
-    <div class="buttons">
-      <a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">📄 BSC Scan</a>
-      <a href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
-      <button onclick="handleMetaMask(event)">🦊 MetaMask</button>
-      <button onclick="handleTrust(event)">🔓 Trust Wallet</button>
-      <button onclick="openAddLiquidity(event)">💧 Add Liquidity</button>
-      <button onclick="openBuyPancake(event)">🛒 Buy on PancakeSwap</button>
-      <button onclick="openHescoTerminal(event)">🚀 GeckoTerminal</button>
-    </div>
-
-      
-
-      <!-- Mining panel (browser-only UI, persistent state) -->
-      <div id="sim-miner" class="miner-card" aria-live="polite">
-        <div class="hdr">BGB Mining</div>
-        <div class="row">Wallet: <span id="sm-addr">—</span></div>
-        <div class="row">Hashrate: <span id="sm-hr">—</span> • Difficulty bits: <span id="sm-bits">—</span></div>
-        <div class="row">Height: <span id="sm-height">0</span> • Last block: <span id="sm-last">—</span></div>
-        <div class="row">Target: <span id="sm-target">—</span> • Next retarget in: <span id="sm-retarget">—</span></div>
-        <div class="acc">Accrued: <span id="sm-acc">0.0000</span> BGB</div>
-        <div class="bar"><div id="sm-bar"></div></div>
-        <div class="shares-list" id="sm-chain" hidden></div>
-        <div class="row" id="sm-msg">Status: ready</div>
-        <div class="btns">
-          <button type="button" onclick="smConnect()">Connect</button>
-          <button type="button" onclick="smStart()">Start</button>
-          <button type="button" onclick="smStop()">Stop</button>
-          <button type="button" onclick="smReset()">Reset</button>
-          <button type="button" onclick="smRequest()">Request Payout (≥30 BGB)</button>
-          <button type="button" onclick="smToggleChain()">Chain</button>
-        </div>
-      </div>
-
-      <div class="contract">
-      Контракт токена:<br>
-      <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
-    </div>
-
-    <div class="lock-info">
-      🔒 Заблокировано <strong>14 300 BGB</strong> на 3 года<br>
-      Дата начала блокировки: <span id="lock-start">загрузка…</span> UTC
-      <div class="timer" id="countdown">Загрузка таймера…</div>
-      <div class="hint" id="lock-hint"></div>
-    </div>
-
-    <footer>© 2025 BGB Token. Все права защищены.</footer>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
-
-  <script>
-    const TOKEN = {
-      address: '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',
-      symbol: 'BGB',
-      decimals: 18,
-      image: 'https://buzizima1985.github.io/bgbtoken.github.io/logo.png'
-    };
-
-    const HESCO_URL = 'https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a';
-
-    async function handleMetaMask(e){
-      e?.preventDefault?.();
-      if (window.ethereum && window.ethereum.request) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_watchAsset',
-            params: { type: 'ERC20', options: TOKEN }
-          });
-        } catch (err) {
-          console.error(err);
-          alert('Не удалось добавить токен в MetaMask.');
-        }
-      } else {
-        window.open('https://metamask.io/download/','_blank');
+    for(let i=0;i<tries;i++){
+      const nonce  = rndHex(8);
+      const header = JSON.stringify({ver:1, prev, time: nowSec, bits: st.bits, nonce, merkle: rndHex(16)});
+      const h      = k256str(header);
+      // сравнение по BigInt от hex-строки
+      if (BigInt(h) <= target){
+        const blk = { idx: st.height+1, time: nowSec, bits: st.bits, nonce, prev, hash: h };
+        st.chain.push(blk);
+        st.height = blk.idx;
+        if(st.chain.length>MAX_BLOCKS_VIEW) st.chain = st.chain.slice(-MAX_BLOCKS_VIEW);
+        $('sm-msg').textContent = `Mined block #${blk.idx}`;
+        if(st.height % RETARGET_INTERVAL === 0) retarget();
+        return true;
       }
     }
+    return false;
+  }
 
-    function handleTrust(e){
-      e?.preventDefault?.();
-      const ua = navigator.userAgent || '';
-      const isAndroid = /Android/i.test(ua);
-      const isIOS     = /iPhone|iPad|iPod/i.test(ua);
-      const dappUrl = encodeURIComponent(window.location.href);
-      const trustOpen = `https://link.trustwallet.com/open_url?source=dapp&url=${dappUrl}`;
+  function retarget(){
+    if(st.height < RETARGET_INTERVAL) return;
+    const from  = st.chain.length - RETARGET_INTERVAL;
+    const first = st.chain[from];
+    const last  = st.chain.at(-1);
+    const actual = Math.max(1, last.time - first.time);
+    const targetSpan = BLOCK_TARGET_TIME * RETARGET_INTERVAL;
 
-      if (isAndroid) {
-        window.location.href = trustOpen;
-        setTimeout(() => {
-          window.open('https://play.google.com/store/apps/details?id=com.wallet.crypto.trustapp','_blank');
-        }, 1200);
-        return;
-      }
+    let newTarget = currentTarget() * BigInt(actual) / BigInt(targetSpan);
+    // clamp: /4 … *4
+    const cur = currentTarget();
+    const minT = cur / 4n, maxT = cur * 4n;
+    if(newTarget < minT) newTarget = minT;
+    if(newTarget > maxT) newTarget = maxT;
 
-      if (isIOS) {
-        window.open('https://apps.apple.com/app/trust-crypto-bitcoin-wallet/id1288339409','_blank');
-        alert('На iOS откройте сайт через Trust Wallet (раздел Browser/WalletConnect).');
-        return;
-      }
+    st.bits = targetToCompact(newTarget);
+  }
 
-      window.open('https://trustwallet.com/download','_blank');
+  function tick(){
+    if(!st.running) return;
+    const now = Date.now();
+    const dt  = now - st.lastMs;
+    if(dt<=0) return;
+
+    // начисление «добычи» (визуально)
+    st.accrued += BASE_RATE * BigInt(Math.floor(dt/1000));
+    st.lastMs   = now;
+
+    // майним небольшой батч синхронно
+    mineBatch();
+    save();
+    render();
+  }
+
+  // --- UI handlers ---
+  window.smConnect = async function(){
+    if(!window.ethereum){ alert('Установите MetaMask'); return; }
+    try{
+      const p = new ethers.BrowserProvider(window.ethereum);
+      const s = await p.getSigner();
+      st.addr = await s.getAddress();
+      save(); render();
+    }catch{ alert('Не удалось подключить кошелёк'); }
+  };
+  window.smStart = function(){ st.running = true; st.lastMs = Date.now(); $('sm-msg').textContent='Mining…'; save(); render(); };
+  window.smStop  = function(){ st.running = false; $('sm-msg').textContent='Paused'; save(); render(); };
+  window.smReset = function(){
+    if(confirm('Сбросить локальные данные майнера?')){
+      st.accrued=0n; st.chain=[]; st.height=0; st.lastMs=Date.now(); st.bits=0x1f00ffff;
+      $('sm-msg').textContent='Reset done'; save(); render();
     }
-
-    function openAddLiquidity(e){
-      e?.preventDefault?.();
-      const addV3 = 'https://pancakeswap.finance/add/BNB/'+TOKEN.address+'?chain=bsc';
-      const addV2 = 'https://pancakeswap.finance/v2/add/BNB/'+TOKEN.address+'?chain=bsc&persistChain=1';
-      window.open(addV3, '_blank');
-      setTimeout(() => { window.open(addV2, '_blank'); }, 300);
-    }
-
-    function openBuyPancake(e){
-      e?.preventDefault?.();
-      const url = 'https://pancakeswap.finance/swap?chain=bsc&outputCurrency='+TOKEN.address;
-      window.open(url, '_blank');
-    }
-
-    function openHescoTerminal(e){
-      e?.preventDefault?.();
-      window.open(HESCO_URL, '_blank');
-    }
-
-    (function(){
-      const LOCK_TX_HASH = '0xabd8b15bebce8b05ee64dbd876fb8b30f870e237aae78f181e367a1b9e9ea5';
-      const LOCK_YEARS = 3;
-      const RPCS = [
-        'https://bsc-dataseed.binance.org/',
-        'https://bsc-dataseed1.binance.org/',
-        'https://bsc-dataseed2.binance.org/',
-        'https://bsc-dataseed3.binance.org/'
-      ];
-      const $ = id => document.getElementById(id);
-      const pad2 = n => String(n).padStart(2,'0');
-      const fmtUTC = ts => {
-        const d = new Date(ts);
-        return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth()+1)}.${d.getUTCFullYear()} `+
-               `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
+  };
+  window.smToggleChain = function(){
+    const el = $('sm-chain');
+    if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden','');
+    render();
+  };
+  window.smRequest = async function(){
+    if(st.accrued < UNIT){ alert('Нужно накопить минимум 30 BGB'); return; }
+    if(!window.ethereum){ alert('Подключите MetaMask'); return; }
+    try{
+      const p = new ethers.BrowserProvider(window.ethereum);
+      const s = await p.getSigner();
+      const addr = await s.getAddress();
+      const payoutWei = st.accrued - (st.accrued % UNIT);
+      const amountBGB = fmtBGB(payoutWei,4);
+      const last = st.chain.at(-1);
+      const payload = {
+        address: addr, session: st.session, amountBGB, amountWei: payoutWei.toString(),
+        height: st.height, lastBlock: last? last.hash : null, bits: st.bits, ts: new Date().toISOString()
       };
-      const CACHE_KEY = 'bgb_lock_start_ms_v1';
-      async function fetchStartMs() {
-        try {
-          const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
-          if (cached && (Date.now() - cached.savedAt) < 24*3600*1000) return cached.startMs;
-        } catch {}
-        let lastErr;
-        for (const url of RPCS) {
-          try {
-            const provider = new ethers.JsonRpcProvider(url, { staticNetwork: { chainId: 56 } });
-            await provider.getBlockNumber();
-            const rcpt = await provider.getTransactionReceipt(LOCK_TX_HASH);
-            if (!rcpt) throw new Error('Receipt not found');
-            const block = await provider.getBlock(rcpt.blockNumber);
-            if (!block) throw new Error('Block not found');
-            const startMs = Number(block.timestamp) * 1000;
-            localStorage.setItem(CACHE_KEY, JSON.stringify({ startMs, savedAt: Date.now() }));
-            return startMs;
-          } catch (e) { lastErr = e; }
-        }
-        throw lastErr || new Error('RPC unavailable');
-      }
-      function runCountdown(unlockTs) {
-        const el = $('countdown');
-        function render() {
-          const diff = unlockTs - Date.now();
-          if (diff <= 0) { el.textContent = '⏳ Блокировка закончена'; return; }
-          const sec = Math.floor(diff / 1000);
-          const d = Math.floor(sec / 86400);
-          const h = Math.floor((sec % 86400) / 3600);
-          const m = Math.floor((sec % 3600) / 60);
-          const s = sec % 60;
-          el.textContent = `${d}д ${pad2(h)}ч ${pad2(m)}м ${pad2(s)}с`;
-        }
-        let id; const start = () => { clearInterval(id); render(); id = setInterval(render, 1000); };
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
-        start();
-      }
-      (async () => {
-        try {
-          $('lock-hint').textContent = 'Синхронизация с блокчейном BSC…';
-          const startMs = await fetchStartMs();
-          $('lock-start').textContent = fmtUTC(startMs);
-          const end = new Date(startMs);
-          end.setUTCFullYear(end.getUTCFullYear() + LOCK_YEARS);
-          const unlockTs = end.getTime();
-          $('lock-hint').textContent = '';
-          runCountdown(unlockTs);
-        } catch (e) {
-          console.error(e);
-          $('lock-hint').textContent = 'Не удалось получить время блокировки (RPC недоступен). Пожалуйста, обновите страницу позже.';
-          $('countdown').textContent = '—';
-        }
-      })();
-    })();
-  
-    
-    // ===== Bitcoin-like Miner (browser-only, persistent, chained blocks, retarget) =====
-    (function(){
-      const KEY = 'bgb_btclike_miner_v1';
-      const BASE_RATE = 5n * 10n**16n;   // UI accrual rate: 0.05 BGB/sec
-      const UNIT = 30n * 10n**18n;       // 30 BGB payout threshold
-      const BLOCK_TARGET_TIME = 10;      // seconds per block (scaled down from 600s)
-      const RETARGET_INTERVAL = 20;      // retarget every N blocks (scaled from 2016)
-      const MAX_BLOCKS_VIEW = 200;
+      const msg =
+        `BGB Claim Request\nAddress: ${payload.address}\nSession: ${payload.session}\nAmount: ${amountBGB} BGB\nHeight: ${payload.height}\nBits: 0x${st.bits.toString(16)}\nLast: ${payload.lastBlock||'-'}\nTime: ${payload.ts}`;
+      const sig = await s.signMessage(msg);
+      const full = { ...payload, signature: sig };
+      try{ await navigator.clipboard.writeText(JSON.stringify(full,null,2)); }catch{}
+      const share = `https://t.me/share/url?url=&text=${encodeURIComponent(msg+'\n\nSignature: '+sig)}`;
+      window.open(share,'_blank','noopener,noreferrer');
+      $('sm-msg').innerHTML = 'Заявка сформирована. Откройте <a href="https://t.me/Makkan1985" target="_blank" rel="noopener">Telegram</a> и отправьте payload.';
+    }catch(e){ alert('Ошибка запроса'); console.error(e); }
+  };
 
-      let st = {
-        addr: null,
-        running: false,
-        lastMs: Date.now(),
-        accrued: 0n,
-        bits: 0x1f00ffff,      // initial compact (easy) target
-        height: 0,
-        chain: [],             // [{idx,time,bits,nonce,prev,hash}]
-        session: rndHex(16)
-      };
-
-      // ---- storage ----
-      function load(){ try{ const x = JSON.parse(localStorage.getItem(KEY)||'null'); if(x){ st = Object.assign(st, x); if(typeof st.accrued==='string') st.accrued = BigInt(st.accrued); } }catch{} }
-      function save(){ try{ const dump = Object.assign({}, st, { accrued: st.accrued.toString() }); localStorage.setItem(KEY, JSON.stringify(dump)); }catch{} }
-
-      // ---- utils ----
-      function rndHex(n){ const a=new Uint8Array(n); (crypto.getRandomValues?crypto.getRandomValues(a):a.fill(0)); return Array.from(a,x=>x.toString(16).padStart(2,'0')).join(''); }
-      function fmtBGB(big, dp=4){ const d=10n**18n; const i=big/d; const f=(big%d).toString().padStart(18,'0').slice(0,dp); return `${i}.${f}`; }
-      function bytesFromUtf8(str){ return new TextEncoder().encode(str); }
-      async function sha256(bytes){ return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)); }
-      function hex(bytes){ return '0x'+[...bytes].map(b=>b.toString(16).padStart(2,'0')).join(''); }
-      async function dsha256Hex(bytes){ const h1=await sha256(bytes); const h2=await sha256(h1); return hex(h2); }
-      function cmpHexAsBigInt(hx, target){ return BigInt(hx) <= target; }
-
-      // Compact bits <-> target (Bitcoin-like)
-      function compactToTarget(bits){
-        const exp = (bits >>> 24) & 0xff;
-        const mant = bits & 0x007fffff; // sign bit ignored
-        let target = BigInt(mant);
-        const shift = 8*(exp-3);
-        if(shift >= 0) target = target * (1n << BigInt(shift)); else target = target / (1n << BigInt(-shift));
-        return target;
-      }
-      function targetToCompact(target){
-        // simplified conversion for UI (not exact rounding like Bitcoin)
-        let exp = 3; let t = BigInt(target);
-        while(t > 0x007fffffn){ t >>= 8n; exp++; }
-        const mant = Number(t & 0x007fffffn);
-        return ((exp & 0xff) << 24) | mant;
-      }
-
-      function currentTarget(){ return compactToTarget(st.bits); }
-
-      // ---- render ----
-      function render(){
-        byId('sm-addr').textContent = st.addr ? `${st.addr.slice(0,6)}…${st.addr.slice(-4)}` : '—';
-        byId('sm-bits').textContent = '0x'+st.bits.toString(16);
-        byId('sm-height').textContent = st.height;
-        byId('sm-acc').textContent = fmtBGB(st.accrued, 4);
-        const pct = Math.min(100, Number(st.accrued * 100n / UNIT));
-        byId('sm-bar').style.width = pct + '%';
-        const t = currentTarget();
-        byId('sm-target').textContent = '0x'+t.toString(16).slice(0,16)+'…';
-        byId('sm-last').textContent = st.height ? st.chain[st.chain.length-1].hash.slice(0,10)+'…' : '—';
-        const nrt = RETARGET_INTERVAL - (st.height % RETARGET_INTERVAL || RETARGET_INTERVAL);
-        byId('sm-retarget').textContent = nrt;
-        const list = byId('sm-chain');
-        if(!list.hasAttribute('hidden')){
-          list.innerHTML = st.chain.slice(-MAX_BLOCKS_VIEW).map(b=>
-            `<div>#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`
-          ).reverse().join('');
-        }
-        // show hashrate based on difficulty (rough UI number)
-        const hr = Number((BASE_RATE) / 10n**14n)/100; // 2dp
-        byId('sm-hr').textContent = `${hr.toFixed(2)} BGB/s`;
-      }
-
-      // ---- mining ----
-      async function mineBatch(){
-        const prev = st.height ? st.chain[st.chain.length-1].hash : '0x'+ '00'.repeat(32);
-        const target = currentTarget();
-        const tries = 256; // per tick
-        const nowSec = Math.floor(Date.now()/1000);
-        for(let i=0;i<tries;i++){
-          const nonce = rndHex(8);
-          const header = JSON.stringify({
-            ver:1, prev, time: Math.floor(Date.now()/1000), bits: st.bits, nonce, merkle: rndHex(16)
-          });
-          const h = await dsha256Hex(bytesFromUtf8(header));
-          if(cmpHexAsBigInt(h, target)){
-            const blk = { idx: st.height+1, time: nowSec, bits: st.bits, nonce, prev, hash:h };
-            st.chain.push(blk); st.height = blk.idx; if(st.chain.length>MAX_BLOCKS_VIEW) st.chain = st.chain.slice(-MAX_BLOCKS_VIEW);
-            byId('sm-msg').textContent = `Mined block #${blk.idx}`;
-            // retarget if needed
-            if(st.height % RETARGET_INTERVAL === 0) retarget();
-            return true;
-          }
-        }
-        return false;
-      }
-
-      function retarget(){
-        if(st.height < RETARGET_INTERVAL) return;
-        const from = st.chain.length-RETARGET_INTERVAL;
-        const first = st.chain[from];
-        const last  = st.chain[st.chain.length-1];
-        const actual = Math.max(1, last.time - first.time);
-        const targetSpan = BLOCK_TARGET_TIME * RETARGET_INTERVAL;
-        let newTarget = currentTarget();
-        newTarget = newTarget * BigInt(actual) / BigInt(targetSpan);
-        // clamp (quarter to quadruple)
-        const minT = currentTarget() / 4n; const maxT = currentTarget() * 4n;
-        if(newTarget < minT) newTarget = minT; if(newTarget > maxT) newTarget = maxT;
-        st.bits = targetToCompact(newTarget);
-      }
-
-      function tick(){
-        if(st.running){
-          const now = Date.now();
-          const dt = now - st.lastMs;
-          if(dt>0){
-            st.accrued += BASE_RATE * BigInt(Math.floor(dt/1000));
-            st.lastMs = now;
-            // mine a small batch asynchronously
-            mineBatch().then(()=>{ save(); render(); });
-          }
-        }
-      }
-
-      // ---- UI handlers ----
-      const byId = id => document.getElementById(id);
-      window.smConnect = async function(){ if(!window.ethereum){ alert('Установите MetaMask'); return; } try{ const p=new ethers.BrowserProvider(window.ethereum); const s=await p.getSigner(); st.addr=await s.getAddress(); save(); render(); }catch{ alert('Не удалось подключить кошелёк'); } }
-      window.smStart = function(){ st.running = true; st.lastMs = Date.now(); byId('sm-msg').textContent='Mining…'; save(); render(); }
-      window.smStop  = function(){ st.running = false; byId('sm-msg').textContent='Paused'; save(); render(); }
-      window.smReset = function(){ if(confirm('Сбросить локальные данные майнера?')){ st.accrued=0n; st.chain=[]; st.height=0; st.lastMs=Date.now(); st.bits=0x1f00ffff; byId('sm-msg').textContent='Reset done'; save(); render(); } }
-      window.smToggleChain = function(){ const el=byId('sm-chain'); if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden',''); render(); }
-      window.smRequest = async function(){ if(st.accrued<UNIT){ alert('Нужно накопить минимум 30 BGB'); return; } if(!window.ethereum){ alert('Подключите MetaMask'); return; } try{ const p=new ethers.BrowserProvider(window.ethereum); const s=await p.getSigner(); const addr=await s.getAddress(); const payoutWei=st.accrued-(st.accrued%UNIT); const amountBGB=fmtBGB(payoutWei,4); const last=st.chain[st.chain.length-1]; const payload={ address:addr, session:st.session, amountBGB, amountWei:payoutWei.toString(), height:st.height, lastBlock:last?last.hash:null, bits:st.bits, ts:new Date().toISOString() }; const msg=`BGB Claim Request
-Address: ${payload.address}
-Session: ${payload.session}
-Amount: ${payload.amountBGB} BGB
-Height: ${payload.height}
-Bits: 0x${st.bits.toString(16)}
-Last: ${payload.lastBlock||'-'}
-Time: ${payload.ts}`; const sig = await s.signMessage(msg); const full={...payload,signature:sig}; try{ await navigator.clipboard.writeText(JSON.stringify(full,null,2)); }catch{} const share = `https://t.me/share/url?url=&text=${encodeURIComponent(msg+"
-
-Signature: "+sig)}`; window.open(share,'_blank','noopener,noreferrer'); byId('sm-msg').innerHTML='Заявка сформирована. Откройте <a href="https://t.me/Makkan1985" target="_blank" rel="noopener">Telegram</a> и отправьте payload.'; }catch(e){ alert('Ошибка запроса'); console.error(e); } }
-
-      load(); render(); setInterval(tick, 1000);
-    })();
-
-  </script>
-</body>
-</html>
+  load(); render();
+  // быстрый и лёгкий цикл
+  setInterval(tick, 500);
+})();
+</script>
