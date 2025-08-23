@@ -10,17 +10,6 @@
 
     * { margin:0; padding:0; box-sizing:border-box; }
 
-    :root{
-      --accent:#e60000;
-      --accent-2:#cc0000;
-      --text:#ffffff;
-      --muted:#9aa0a6;
-      --gold:#FFD700;
-      --ok:#00ff88;
-      --surface:rgba(255,255,255,.15);
-      --surface-gold:rgba(255,215,0,.15);
-    }
-
     body, html {
       height:100%;
       font-family:'Orbitron', sans-serif;
@@ -32,118 +21,79 @@
       background-color:rgba(0,0,0,0.75);
       height:100%; width:100%;
       display:flex; flex-direction:column; justify-content:center; align-items:center;
-      text-align:center; padding:30px; gap:14px;
+      text-align:center; padding:30px;
     }
-
-    .container{ max-width: 900px; width:100%; margin:0 auto; }
 
     h1{
-      font-size:64px; line-height:1.05;
+      font-size:64px;
       background:linear-gradient(to right, red, orange);
       -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-      margin-bottom:12px;
+      margin-bottom:20px;
     }
 
-    p{ font-size:24px; color:var(--text); margin-bottom:16px; }
+    p{ font-size:24px; color:#fff; margin-bottom:30px; }
 
-    .buttons{ display:flex; flex-wrap:wrap; justify-content:center; }
     .buttons a, .buttons button{
-      text-decoration:none; display:inline-flex; align-items:center; gap:6px;
-      margin:10px; padding:15px 28px;
-      background:var(--accent); border-radius:12px; color:#fff; font-weight:bold; font-size:18px;
-      box-shadow:0 0 10px var(--accent); transition:.25s ease-in-out; border:none; cursor:pointer;
+      text-decoration:none; display:inline-block; margin:10px; padding:15px 28px;
+      background:#e60000; border-radius:10px; color:#fff; font-weight:bold; font-size:18px;
+      box-shadow:0 0 10px #e60000; transition:.3s ease-in-out; border:none; cursor:pointer;
     }
-    .buttons a:hover, .buttons button:hover{ background:var(--accent-2); transform:translateY(-1px) scale(1.02); }
-    .buttons img{ width:20px; height:20px; display:inline-block; }
+    .buttons a:hover, .buttons button:hover{ background:#cc0000; transform:scale(1.05); }
 
-    .btn-icon{ display:inline-flex; align-items:center; gap:8px; }
-    .btn-icon svg{ width:18px; height:18px; }
-
-    .contract{ background:var(--surface); color:#fff; margin:18px auto 0; padding:15px 20px;
-      border-radius:12px; font-size:16px; display:inline-flex; align-items:center; gap:12px; }
-    .contract code{ font-size:15px; user-select:all; }
-    .contract button{ background:transparent; border:1px dashed #fff3; color:#fff; padding:8px 12px; border-radius:10px; cursor:pointer; }
-    .contract button:hover{ background:#fff1; }
+    .contract{
+      background:rgba(255,255,255,.15); color:#fff; margin-top:30px; padding:15px 20px;
+      border-radius:10px; font-size:16px;
+    }
 
     .lock-info{
-      margin-top:18px; padding:15px 20px; background:var(--surface-gold);
-      border-radius:12px; color:var(--gold); font-size:18px; display:inline-block;
+      margin-top:25px; padding:15px 20px; background:rgba(255,215,0,.15);
+      border-radius:10px; color:#FFD700; font-size:18px;
     }
-    .timer{ font-size:22px; font-weight:700; color:var(--ok); margin-top:10px; }
-    .hint { margin-top:6px; font-size:12px; color:var(--muted); }
+    .timer{ font-size:22px; font-weight:700; color:#00ff88; margin-top:10px; }
+    .hint { margin-top:6px; font-size:12px; color:#9aa0a6; }
 
-    footer{ margin-top:24px; color:#ccc; font-size:14px; }
-
-    /* Toasts */
-    .toast-wrap{ position:fixed; right:20px; bottom:20px; display:flex; flex-direction:column; gap:10px; z-index:9999; }
-    .toast{ min-width:260px; max-width:360px; background:#121212; color:#fff; border:1px solid #ffffff22; border-radius:12px; padding:12px 14px; box-shadow:0 8px 30px rgba(0,0,0,.35); text-align:left; }
-    .toast.success{ border-color:#1dbf7333; }
-    .toast.error{ border-color:#ff4d4f33; }
-    .toast .t-title{ font-weight:700; margin-bottom:4px; font-size:14px; }
-    .toast .t-msg{ font-size:13px; opacity:.9; }
+    footer{ margin-top:30px; color:#aaa; font-size:14px; }
 
     @media (max-width:600px){
       h1{ font-size:40px; }
       p{ font-size:18px; }
       .buttons a, .buttons button{ font-size:16px; padding:12px 20px; }
-      .toast-wrap{ right:12px; bottom:12px; }
     }
   </style>
 </head>
 <body>
   <div class="overlay">
-    <div class="container" role="main">
-      <h1>BGB Token</h1>
-      <p>🎁 Получи <strong>300 BGB</strong> прямо сейчас на свой кошелёк</p>
+    <h1>BGB Token</h1>
+    <p>🎁 Получи <strong>300 BGB</strong> прямо сейчас на свой кошелёк</p>
 
-      <div class="buttons" aria-label="Основные действия">
-        <a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener noreferrer">📄 BSC Scan</a>
-        <a href="https://t.me/Makkan1985" target="_blank" rel="noopener noreferrer">💬 Telegram</a>
-        <button type="button" onclick="handleMetaMask(event)">🦊 MetaMask</button>
-        <button type="button" onclick="handleTrust(event)">🔓 Trust Wallet</button>
-        <button type="button" onclick="openAddLiquidity(event)">💧 Add Liquidity</button>
-        <button type=\"button\" class=\"btn-icon\" onclick=\"openBuyPancake(event)\">
-          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"14\" r=\"7\" fill=\"currentColor\" opacity=\".15\"/><circle cx=\"9\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"15\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><path d=\"M8 6c0-1.7 1.3-3 3-3v0c.8 0 1.5.3 2 .8.5-.5 1.2-.8 2-.8 1.7 0 3 1.3 3 3 0 1.2-.7 2.3-1.7 2.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>
-          Buy on PancakeSwap
-        </button>
-        <button type=\"button\" class=\"btn-icon\" onclick=\"openHescoTerminal(event)\">
-          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"currentColor\" opacity=\".15\"/><path d=\"M8 14c2 0 3-2 4-3s3-1 4 1-1 4-3 4-3 2-5 2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"9\" cy=\"9\" r=\"1\" fill=\"currentColor\"/></svg>
-          HESCO Terminal
-        </button>
-      </div>
-
-      <div class="contract" aria-live="polite">
-        <span>Контракт токена:</span>
-        <code id="token-address">0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
-        <button type="button" onclick="copyAddress()" title="Скопировать адрес">📋 Copy</button>
-      </div>
-
-      <!-- Таймер блокировки (время берём из блока по Tx hash) -->
-      <div class="lock-info">
-        🔒 Заблокировано <strong>14 300 BGB</strong> на 3 года<br/>
-        Дата начала блокировки: <span id="lock-start">загрузка…</span> UTC
-        <div class="timer" id="countdown">Загрузка таймера…</div>
-        <div class="hint" id="lock-hint"></div>
-      </div>
-
-      <footer>© 2025 BGB Token. Все права защищены.</footer>
+    <div class="buttons">
+      <a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">📄 BSC Scan</a>
+      <a href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
+      <button onclick="handleMetaMask(event)">🦊 MetaMask</button>
+      <button onclick="handleTrust(event)">🔓 Trust Wallet</button>
+      <button onclick="openAddLiquidity(event)">💧 Add Liquidity</button>
+      <button onclick="openBuyPancake(event)">🛒 Buy on PancakeSwap</button>
+      <button onclick="openHescoTerminal(event)">🚀 GeckoTerminal</button>
     </div>
+
+    <div class="contract">
+      Контракт токена:<br>
+      <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code>
+    </div>
+
+    <div class="lock-info">
+      🔒 Заблокировано <strong>14 300 BGB</strong> на 3 года<br>
+      Дата начала блокировки: <span id="lock-start">загрузка…</span> UTC
+      <div class="timer" id="countdown">Загрузка таймера…</div>
+      <div class="hint" id="lock-hint"></div>
+    </div>
+
+    <footer>© 2025 BGB Token. Все права защищены.</footer>
   </div>
 
-  <!-- Ethers для чтения блока -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
 
   <script>
-    // === Простые тосты вместо alert ===
-    const toastWrap = document.createElement('div'); toastWrap.className = 'toast-wrap'; document.body.appendChild(toastWrap);
-    function notify(type = 'success', title = 'Готово', msg = ''){
-      const el = document.createElement('div'); el.className = `toast ${type}`;
-      el.innerHTML = `<div class="t-title">${title}</div><div class="t-msg">${msg}</div>`;
-      toastWrap.appendChild(el);
-      setTimeout(()=>{ el.style.opacity = '0'; el.style.transform = 'translateY(6px)'; }, 3600);
-      setTimeout(()=>el.remove(), 4200);
-    }
-
     const TOKEN = {
       address: '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',
       symbol: 'BGB',
@@ -153,112 +103,67 @@
 
     const HESCO_URL = 'https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a';
 
-    const BSC_PARAMS = {
-      chainId: '0x38', // 56
-      chainName: 'BNB Smart Chain',
-      nativeCurrency: { name:'BNB', symbol:'BNB', decimals:18 },
-      rpcUrls: [
-        'https://bsc-dataseed.binance.org/',
-        'https://bsc-dataseed1.binance.org/',
-        'https://bsc-dataseed2.binance.org/',
-        'https://bsc-dataseed3.binance.org/'
-      ],
-      blockExplorerUrls: ['https://bscscan.com']
-    };
-
-    // ===== Копирование адреса контракта =====
-    async function copyAddress(){
-      try{
-        await navigator.clipboard.writeText(TOKEN.address);
-        notify('success','Скопировано','Адрес контракта сохранён в буфере обмена.');
-      }catch(e){
-        notify('error','Не удалось скопировать','Скопируйте вручную: '+TOKEN.address);
-      }
-    }
-
-    // ===== MetaMask: добавить BSC и токен =====
     async function handleMetaMask(e){
       e?.preventDefault?.();
-      const eth = window.ethereum;
-      if(!eth || !eth.request){
-        window.open('https://metamask.io/download/','_blank','noopener,noreferrer');
-        notify('error','MetaMask не найден','Установите расширение и повторите.');
-        return;
-      }
-      try{
-        // Пытаемся перейти на BSC
-        try{ await eth.request({ method:'wallet_switchEthereumChain', params:[{ chainId:BSC_PARAMS.chainId }] }); }
-        catch(switchErr){
-          if(switchErr?.code === 4902){ // сети нет — добавим
-            await eth.request({ method:'wallet_addEthereumChain', params:[BSC_PARAMS] });
-          }else{ throw switchErr; }
+      if (window.ethereum && window.ethereum.request) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_watchAsset',
+            params: { type: 'ERC20', options: TOKEN }
+          });
+        } catch (err) {
+          console.error(err);
+          alert('Не удалось добавить токен в MetaMask.');
         }
-        // Добавляем токен в кошелёк
-        const added = await eth.request({ method:'wallet_watchAsset', params:{ type:'ERC20', options:TOKEN } });
-        if(added){ notify('success','Токен добавлен','BGB теперь виден в вашем MetaMask.'); }
-        else { notify('error','Отклонено','Вы отменили добавление токена.'); }
-      }catch(err){
-        console.error(err);
-        notify('error','Ошибка MetaMask', String(err?.message||err));
+      } else {
+        window.open('https://metamask.io/download/','_blank');
       }
     }
 
-    // ===== Trust Wallet: открыть DApp или отправить на установку =====
     function handleTrust(e){
       e?.preventDefault?.();
       const ua = navigator.userAgent || '';
       const isAndroid = /Android/i.test(ua);
       const isIOS     = /iPhone|iPad|iPod/i.test(ua);
-      const dappUrl = encodeURIComponent(location.href);
+      const dappUrl = encodeURIComponent(window.location.href);
       const trustOpen = `https://link.trustwallet.com/open_url?source=dapp&url=${dappUrl}`;
 
       if (isAndroid) {
-        location.href = trustOpen;
+        window.location.href = trustOpen;
         setTimeout(() => {
-          window.open('https://play.google.com/store/apps/details?id=com.wallet.crypto.trustapp','_blank','noopener,noreferrer');
+          window.open('https://play.google.com/store/apps/details?id=com.wallet.crypto.trustapp','_blank');
         }, 1200);
         return;
       }
 
       if (isIOS) {
-        window.open('https://apps.apple.com/app/trust-crypto-bitcoin-wallet/id1288339409','_blank','noopener,noreferrer');
-        notify('success','iOS инструкция','Откройте сайт через Trust Wallet (вкладка Browser/WalletConnect).');
+        window.open('https://apps.apple.com/app/trust-crypto-bitcoin-wallet/id1288339409','_blank');
+        alert('На iOS откройте сайт через Trust Wallet (раздел Browser/WalletConnect).');
         return;
       }
 
-      window.open('https://trustwallet.com/download','_blank','noopener,noreferrer');
-      notify('success','Desktop','Установите Trust Wallet или откройте сайт на мобильном устройстве.');
+      window.open('https://trustwallet.com/download','_blank');
     }
 
-    // ===== Кнопка Add Liquidity (PancakeSwap) =====
     function openAddLiquidity(e){
       e?.preventDefault?.();
-      const addV3 = 'https://pancakeswap.finance/add/BNB/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C?chain=bsc';
-      const addV2 = 'https://pancakeswap.finance/v2/add/BNB/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C?chain=bsc&persistChain=1';
-      const v3 = window.open(addV3, '_blank','noopener,noreferrer');
-      setTimeout(() => { if(v3) window.open(addV2, '_blank','noopener,noreferrer'); }, 350);
+      const addV3 = 'https://pancakeswap.finance/add/BNB/'+TOKEN.address+'?chain=bsc';
+      const addV2 = 'https://pancakeswap.finance/v2/add/BNB/'+TOKEN.address+'?chain=bsc&persistChain=1';
+      window.open(addV3, '_blank');
+      setTimeout(() => { window.open(addV2, '_blank'); }, 300);
     }
 
-    // ===== Кнопка Buy на PancakeSwap =====
     function openBuyPancake(e){
       e?.preventDefault?.();
-      const base = 'https://pancakeswap.finance/swap?chain=bsc&outputCurrency=' + encodeURIComponent(TOKEN.address);
-      const fallback = 'https://pancakeswap.finance/v2/swap?chain=bsc&outputCurrency=' + encodeURIComponent(TOKEN.address);
-      const w = window.open(base, '_blank', 'noopener,noreferrer');
-      setTimeout(()=>{ if(w) window.open(fallback, '_blank', 'noopener,noreferrer'); }, 350);
+      const url = 'https://pancakeswap.finance/swap?chain=bsc&outputCurrency='+TOKEN.address;
+      window.open(url, '_blank');
     }
 
-    // ===== Кнопка HESCO Terminal =====
     function openHescoTerminal(e){
       e?.preventDefault?.();
-      if(!HESCO_URL){
-        notify('error','HESCO URL не задан','Укажите ссылку в константе HESCO_URL в коде.');
-        return;
-      }
-      window.open(HESCO_URL, '_blank','noopener,noreferrer');
+      window.open(HESCO_URL, '_blank');
     }
 
-    // ======= АВТО-ТАЙМЕР ИЗ БЛОКА =======
     (function(){
       const LOCK_TX_HASH = '0xabd8b15bebce8b05ee64dbd876fb8b30f870e237aae78f181e367a1b9e9ea5';
       const LOCK_YEARS = 3;
@@ -268,7 +173,6 @@
         'https://bsc-dataseed2.binance.org/',
         'https://bsc-dataseed3.binance.org/'
       ];
-
       const $ = id => document.getElementById(id);
       const pad2 = n => String(n).padStart(2,'0');
       const fmtUTC = ts => {
@@ -276,31 +180,61 @@
         return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth()+1)}.${d.getUTCFullYear()} `+
                `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
       };
-
       const CACHE_KEY = 'bgb_lock_start_ms_v1';
-
-      async function fetchStartMs(){
-        try{
-          const raw = localStorage.getItem(CACHE_KEY);
-          if(raw){
-            try{
-              const cached = JSON.parse(raw);
-              if (cached && (Date.now() - cached.savedAt) < 24*3600*1000) return cached.startMs;
-            }catch{ /* ignore parse error */ }
-          }
-        }catch{ /* ignore storage error */ }
-
+      async function fetchStartMs() {
+        try {
+          const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+          if (cached && (Date.now() - cached.savedAt) < 24*3600*1000) return cached.startMs;
+        } catch {}
         let lastErr;
-        for (const url of RPCS){
-          try{
-            const provider = new ethers.JsonRpcProvider(url, { staticNetwork: { chainId:56 } });
+        for (const url of RPCS) {
+          try {
+            const provider = new ethers.JsonRpcProvider(url, { staticNetwork: { chainId: 56 } });
             await provider.getBlockNumber();
             const rcpt = await provider.getTransactionReceipt(LOCK_TX_HASH);
             if (!rcpt) throw new Error('Receipt not found');
             const block = await provider.getBlock(rcpt.blockNumber);
             if (!block) throw new Error('Block not found');
             const startMs = Number(block.timestamp) * 1000;
-            try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ startMs, savedAt: Date.now() })); }catch{}
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ startMs, savedAt: Date.now() }));
             return startMs;
-          }catch(e){ lastErr = e; }
+          } catch (e) { lastErr = e; }
         }
+        throw lastErr || new Error('RPC unavailable');
+      }
+      function runCountdown(unlockTs) {
+        const el = $('countdown');
+        function render() {
+          const diff = unlockTs - Date.now();
+          if (diff <= 0) { el.textContent = '⏳ Блокировка закончена'; return; }
+          const sec = Math.floor(diff / 1000);
+          const d = Math.floor(sec / 86400);
+          const h = Math.floor((sec % 86400) / 3600);
+          const m = Math.floor((sec % 3600) / 60);
+          const s = sec % 60;
+          el.textContent = `${d}д ${pad2(h)}ч ${pad2(m)}м ${pad2(s)}с`;
+        }
+        let id; const start = () => { clearInterval(id); render(); id = setInterval(render, 1000); };
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
+        start();
+      }
+      (async () => {
+        try {
+          $('lock-hint').textContent = 'Синхронизация с блокчейном BSC…';
+          const startMs = await fetchStartMs();
+          $('lock-start').textContent = fmtUTC(startMs);
+          const end = new Date(startMs);
+          end.setUTCFullYear(end.getUTCFullYear() + LOCK_YEARS);
+          const unlockTs = end.getTime();
+          $('lock-hint').textContent = '';
+          runCountdown(unlockTs);
+        } catch (e) {
+          console.error(e);
+          $('lock-hint').textContent = 'Не удалось получить время блокировки (RPC недоступен). Пожалуйста, обновите страницу позже.';
+          $('countdown').textContent = '—';
+        }
+      })();
+    })();
+  </script>
+</body>
+</html>
