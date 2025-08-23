@@ -1,94 +1,79 @@
 <script>
-// ===== Miner (browser-only, fast + stable, chained blocks, retarget) =====
 (function(){
+  // === Константы / состояние ===
   const KEY = 'bgb_btclike_miner_keccak_v1';
-  const BASE_RATE = 5n * 10n**16n;   // 0.05 BGB/sec (визуальный темп)
-  const UNIT = 30n * 10n**18n;       // 30 BGB порог выплаты
-  const BLOCK_TARGET_TIME = 10;      // целевое время блока (сек)
-  const RETARGET_INTERVAL = 20;      // пересчёт сложности каждые N блоков
-  const MAX_BLOCKS_VIEW = 200;
+  const BASE_RATE = 5n * 10n**16n;  // 0.05 BGB/s (визуально)
+  const UNIT = 30n * 10n**18n;      // 30 BGB
+  const BLOCK_TARGET_TIME = 10;     // сек/блок (ускорено)
+  const RETARGET_INTERVAL = 20;     // пересчёт каждые N блоков
+  const MAX_VIEW = 200;
 
   let st = {
-    addr: null,
-    running: false,
-    lastMs: Date.now(),
-    accrued: 0n,
-    bits: 0x1f00ffff,   // компактная сложность (как в BTC, но для UI)
-    height: 0,
-    chain: [],          // [{idx,time,bits,nonce,prev,hash}]
-    session: rndHex(16)
+    addr:null, running:false, lastMs:Date.now(), accrued:0n,
+    bits:0x1f00ffff, height:0, chain:[], session:rndHex(16)
   };
 
-  // --- storage ---
-  function load(){ try{ const x = JSON.parse(localStorage.getItem(KEY)||'null'); if(x){ st = Object.assign(st,x); if(typeof st.accrued==='string') st.accrued = BigInt(st.accrued); } }catch{} }
-  function save(){ try{ localStorage.setItem(KEY, JSON.stringify({...st, accrued: st.accrued.toString()})); }catch{} }
-
-  // --- utils ---
+  // === Вспомогательные ===
+  const $ = id => document.getElementById(id);
   function rndHex(n){ const a=new Uint8Array(n); (crypto.getRandomValues?crypto.getRandomValues(a):a.fill(0)); return Array.from(a,x=>x.toString(16).padStart(2,'0')).join(''); }
-  function fmtBGB(big, dp=4){ const d=10n**18n; const i=big/d; const f=(big%d).toString().padStart(18,'0').slice(0,dp); return `${i}.${f}`; }
-  function k256str(s){ return ethers.keccak256(ethers.toUtf8Bytes(s)); } // синхронно и надёжно
+  function fmt(big,dp=4){ const d=10n**18n; const i=big/d; const f=(big%d).toString().padStart(18,'0').slice(0,dp); return `${i}.${f}`; }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify({...st, accrued: st.accrued.toString()})); }catch{} }
+  function load(){ try{ const x=JSON.parse(localStorage.getItem(KEY)||'null'); if(x){ st=Object.assign(st,x); if(typeof st.accrued==='string') st.accrued=BigInt(st.accrued); } }catch{} }
 
-  // bits <-> target (упрощённо, для UI)
+  // compact bits <-> target (упрощённо)
   function compactToTarget(bits){
-    const exp  = (bits >>> 24) & 0xff;
-    const mant = bits & 0x007fffff;
-    let target = BigInt(mant);
-    const shift = 8*(exp-3);
-    target = shift>=0 ? target * (1n<<BigInt(shift)) : target / (1n<<BigInt(-shift));
-    return target;
+    const exp=(bits>>>24)&0xff, mant=bits&0x007fffff;
+    let t=BigInt(mant); const shift=8*(exp-3);
+    t = shift>=0 ? t*(1n<<BigInt(shift)) : t/(1n<<BigInt(-shift));
+    return t;
   }
   function targetToCompact(target){
-    let exp=3, t=BigInt(target);
-    while(t > 0x007fffffn){ t >>= 8n; exp++; }
-    const mant = Number(t & 0x007fffffn);
-    return ((exp & 0xff) << 24) | mant;
+    let exp=3, t=BigInt(target); while(t>0x007fffffn){ t>>=8n; exp++; }
+    const mant=Number(t&0x007fffffn); return ((exp&0xff)<<24)|mant;
   }
-  function currentTarget(){ return compactToTarget(st.bits); }
+  const curTarget = ()=>compactToTarget(st.bits);
+  const k256 = s => ethers.keccak256(ethers.toUtf8Bytes(s));
 
-  // --- render ---
-  const $ = id => document.getElementById(id);
+  // === Рендер ===
   function render(){
     $('sm-addr').textContent   = st.addr ? `${st.addr.slice(0,6)}…${st.addr.slice(-4)}` : '—';
-    $('sm-height').textContent = st.height;
-    $('sm-acc').textContent    = fmtBGB(st.accrued,4);
     $('sm-bits').textContent   = '0x'+st.bits.toString(16);
-    $('sm-target').textContent = '0x'+currentTarget().toString(16).slice(0,16)+'…';
+    $('sm-height').textContent = st.height;
+    $('sm-target').textContent = '0x'+curTarget().toString(16).slice(0,16)+'…';
+    $('sm-acc').textContent    = fmt(st.accrued,4);
     $('sm-last').textContent   = st.height ? st.chain.at(-1).hash.slice(0,10)+'…' : '—';
-    const nrt = RETARGET_INTERVAL - (st.height % RETARGET_INTERVAL || RETARGET_INTERVAL);
-    $('sm-retarget').textContent = nrt;
+    $('sm-retarget').textContent = RETARGET_INTERVAL - (st.height % RETARGET_INTERVAL || RETARGET_INTERVAL);
 
+    // прогресс к 30 BGB
     const pct = Math.min(100, Number(st.accrued * 100n / UNIT));
     $('sm-bar').style.width = pct + '%';
 
-    // «хешрейт» просто стабильно отображаем как число (визуальный)
-    const hr = Number(BASE_RATE / 10n**14n)/100; // 2 знака
+    // хешрейт — просто стабильное число для UI
+    const hr = Number(BASE_RATE / 10n**14n)/100;
     $('sm-hr').textContent = `${hr.toFixed(2)} BGB/s`;
 
     const list = $('sm-chain');
     if(!list.hasAttribute('hidden')){
-      list.innerHTML = st.chain.slice(-MAX_BLOCKS_VIEW).map(b =>
+      list.innerHTML = st.chain.slice(-MAX_VIEW).map(b =>
         `<div>#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`
       ).reverse().join('');
     }
   }
 
-  // --- mining (sync, без WebCrypto) ---
+  // === Майнинг (быстрый, синхронный на keccak, без WebCrypto) ===
   function mineBatch(){
     const prev   = st.height ? st.chain.at(-1).hash : '0x'+'00'.repeat(32);
-    const target = currentTarget();
-    const tries  = 512; // сколько нонсов пробуем за тик
+    const target = curTarget();
+    const tries  = 512;               // сколько нонсов за тик
     const nowSec = Math.floor(Date.now()/1000);
-
     for(let i=0;i<tries;i++){
       const nonce  = rndHex(8);
       const header = JSON.stringify({ver:1, prev, time: nowSec, bits: st.bits, nonce, merkle: rndHex(16)});
-      const h      = k256str(header);
-      // сравнение по BigInt от hex-строки
+      const h      = k256(header);
       if (BigInt(h) <= target){
         const blk = { idx: st.height+1, time: nowSec, bits: st.bits, nonce, prev, hash: h };
-        st.chain.push(blk);
-        st.height = blk.idx;
-        if(st.chain.length>MAX_BLOCKS_VIEW) st.chain = st.chain.slice(-MAX_BLOCKS_VIEW);
+        st.chain.push(blk); st.height = blk.idx;
+        if(st.chain.length>MAX_VIEW) st.chain = st.chain.slice(-MAX_VIEW);
         $('sm-msg').textContent = `Mined block #${blk.idx}`;
         if(st.height % RETARGET_INTERVAL === 0) retarget();
         return true;
@@ -99,88 +84,61 @@
 
   function retarget(){
     if(st.height < RETARGET_INTERVAL) return;
-    const from  = st.chain.length - RETARGET_INTERVAL;
-    const first = st.chain[from];
-    const last  = st.chain.at(-1);
+    const from = st.chain.length-RETARGET_INTERVAL;
+    const first = st.chain[from], last = st.chain.at(-1);
     const actual = Math.max(1, last.time - first.time);
     const targetSpan = BLOCK_TARGET_TIME * RETARGET_INTERVAL;
 
-    let newTarget = currentTarget() * BigInt(actual) / BigInt(targetSpan);
-    // clamp: /4 … *4
-    const cur = currentTarget();
-    const minT = cur / 4n, maxT = cur * 4n;
-    if(newTarget < minT) newTarget = minT;
-    if(newTarget > maxT) newTarget = maxT;
-
-    st.bits = targetToCompact(newTarget);
+    let newT = curTarget() * BigInt(actual) / BigInt(targetSpan);
+    const cur = curTarget();
+    const minT = cur/4n, maxT = cur*4n;
+    if(newT < minT) newT = minT;
+    if(newT > maxT) newT = maxT;
+    st.bits = targetToCompact(newT);
   }
 
   function tick(){
     if(!st.running) return;
-    const now = Date.now();
-    const dt  = now - st.lastMs;
+    const now=Date.now(), dt=now-st.lastMs;
     if(dt<=0) return;
-
-    // начисление «добычи» (визуально)
     st.accrued += BASE_RATE * BigInt(Math.floor(dt/1000));
-    st.lastMs   = now;
-
-    // майним небольшой батч синхронно
+    st.lastMs = now;
     mineBatch();
-    save();
-    render();
+    save(); render();
   }
 
-  // --- UI handlers ---
+  // === Обработчики кнопок (глобально) ===
   window.smConnect = async function(){
     if(!window.ethereum){ alert('Установите MetaMask'); return; }
-    try{
-      const p = new ethers.BrowserProvider(window.ethereum);
-      const s = await p.getSigner();
-      st.addr = await s.getAddress();
-      save(); render();
-    }catch{ alert('Не удалось подключить кошелёк'); }
+    try{ const p=new ethers.BrowserProvider(window.ethereum); const s=await p.getSigner(); st.addr=await s.getAddress(); save(); render(); }
+    catch{ alert('Не удалось подключить кошелёк'); }
   };
-  window.smStart = function(){ st.running = true; st.lastMs = Date.now(); $('sm-msg').textContent='Mining…'; save(); render(); };
-  window.smStop  = function(){ st.running = false; $('sm-msg').textContent='Paused'; save(); render(); };
-  window.smReset = function(){
-    if(confirm('Сбросить локальные данные майнера?')){
-      st.accrued=0n; st.chain=[]; st.height=0; st.lastMs=Date.now(); st.bits=0x1f00ffff;
-      $('sm-msg').textContent='Reset done'; save(); render();
-    }
-  };
-  window.smToggleChain = function(){
-    const el = $('sm-chain');
-    if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden','');
-    render();
-  };
+  window.smStart = function(){ st.running=true; st.lastMs=Date.now(); $('sm-msg').textContent='Mining…'; save(); render(); };
+  window.smStop  = function(){ st.running=false; $('sm-msg').textContent='Paused'; save(); render(); };
+  window.smReset = function(){ if(confirm('Сбросить локальные данные майнера?')){ st.accrued=0n; st.chain=[]; st.height=0; st.lastMs=Date.now(); st.bits=0x1f00ffff; $('sm-msg').textContent='Reset done'; save(); render(); } };
+  window.smToggleChain = function(){ const el=$('sm-chain'); if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden',''); render(); };
+
+  // Payout-заявка в TG (как раньше)
   window.smRequest = async function(){
-    if(st.accrued < UNIT){ alert('Нужно накопить минимум 30 BGB'); return; }
+    if(st.accrued < UNIT){ alert('Нужно ≥30 BGB'); return; }
     if(!window.ethereum){ alert('Подключите MetaMask'); return; }
     try{
-      const p = new ethers.BrowserProvider(window.ethereum);
-      const s = await p.getSigner();
-      const addr = await s.getAddress();
+      const p=new ethers.BrowserProvider(window.ethereum), s=await p.getSigner(), addr=await s.getAddress();
       const payoutWei = st.accrued - (st.accrued % UNIT);
-      const amountBGB = fmtBGB(payoutWei,4);
+      const amountBGB = fmt(payoutWei,4);
       const last = st.chain.at(-1);
-      const payload = {
-        address: addr, session: st.session, amountBGB, amountWei: payoutWei.toString(),
-        height: st.height, lastBlock: last? last.hash : null, bits: st.bits, ts: new Date().toISOString()
-      };
-      const msg =
-        `BGB Claim Request\nAddress: ${payload.address}\nSession: ${payload.session}\nAmount: ${amountBGB} BGB\nHeight: ${payload.height}\nBits: 0x${st.bits.toString(16)}\nLast: ${payload.lastBlock||'-'}\nTime: ${payload.ts}`;
+      const payload = { address:addr, session:st.session, amountBGB, amountWei:payoutWei.toString(), height:st.height, lastBlock:last?last.hash:null, bits:st.bits, ts:new Date().toISOString() };
+      const msg = `BGB Claim Request\nAddress: ${addr}\nSession: ${st.session}\nAmount: ${amountBGB} BGB\nHeight: ${st.height}\nBits: 0x${st.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nTime: ${payload.ts}`;
       const sig = await s.signMessage(msg);
-      const full = { ...payload, signature: sig };
-      try{ await navigator.clipboard.writeText(JSON.stringify(full,null,2)); }catch{}
+      try{ await navigator.clipboard.writeText(JSON.stringify({...payload,signature:sig},null,2)); }catch{}
       const share = `https://t.me/share/url?url=&text=${encodeURIComponent(msg+'\n\nSignature: '+sig)}`;
       window.open(share,'_blank','noopener,noreferrer');
-      $('sm-msg').innerHTML = 'Заявка сформирована. Откройте <a href="https://t.me/Makkan1985" target="_blank" rel="noopener">Telegram</a> и отправьте payload.';
+      $('sm-msg').innerHTML='Заявка сформирована. Откройте <a href="https://t.me/Makkan1985" target="_blank" rel="noopener">Telegram</a> и отправьте payload.';
     }catch(e){ alert('Ошибка запроса'); console.error(e); }
   };
 
+  // === Запуск ===
   load(); render();
-  // быстрый и лёгкий цикл
-  setInterval(tick, 500);
+  setInterval(tick, 500); // лёгкий цикл
 })();
 </script>
