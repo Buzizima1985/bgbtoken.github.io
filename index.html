@@ -97,6 +97,8 @@
         <button type="button" onclick="handleMetaMask(event)">🦊 MetaMask</button>
         <button type="button" onclick="handleTrust(event)">🔓 Trust Wallet</button>
         <button type="button" onclick="openAddLiquidity(event)">💧 Add Liquidity</button>
+        <button type="button" onclick="openBuyPancake(event)">🛒 Buy on PancakeSwap</button>
+        <button type="button" onclick="openHescoTerminal(event)">🚀 HESCO Terminal</button>
       </div>
 
       <div class="contract" aria-live="polite">
@@ -137,6 +139,8 @@
       decimals: 18,
       image: 'https://buzizima1985.github.io/bgbtoken.github.io/logo.png'
     };
+
+    const HESCO_URL = ''; // TODO: вставьте ссылку на HESCO Terminal для покупки токена (если неизвестно — оставьте пустым)
 
     const BSC_PARAMS = {
       chainId: '0x38', // 56
@@ -222,6 +226,25 @@
       const addV2 = 'https://pancakeswap.finance/v2/add/BNB/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C?chain=bsc&persistChain=1';
       const v3 = window.open(addV3, '_blank','noopener,noreferrer');
       setTimeout(() => { if(v3) window.open(addV2, '_blank','noopener,noreferrer'); }, 350);
+    }
+
+    // ===== Кнопка Buy на PancakeSwap =====
+    function openBuyPancake(e){
+      e?.preventDefault?.();
+      const base = 'https://pancakeswap.finance/swap?chain=bsc&outputCurrency=' + encodeURIComponent(TOKEN.address);
+      const fallback = 'https://pancakeswap.finance/v2/swap?chain=bsc&outputCurrency=' + encodeURIComponent(TOKEN.address);
+      const w = window.open(base, '_blank', 'noopener,noreferrer');
+      setTimeout(()=>{ if(w) window.open(fallback, '_blank', 'noopener,noreferrer'); }, 350);
+    }
+
+    // ===== Кнопка HESCO Terminal =====
+    function openHescoTerminal(e){
+      e?.preventDefault?.();
+      if(!HESCO_URL){
+        notify('error','HESCO URL не задан','Укажите ссылку в константе HESCO_URL в коде.');
+        return;
+      }
+      window.open(HESCO_URL, '_blank','noopener,noreferrer');
     }
 
     // ======= АВТО-ТАЙМЕР ИЗ БЛОКА =======
@@ -312,4 +335,3 @@
   </script>
 </body>
 </html>
-
