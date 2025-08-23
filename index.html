@@ -63,7 +63,13 @@ footer{margin:16px 0;color:#9aa0a6}
     <div class="buttons">
       <a class="btn" href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">📄 BSC Scan</a>
       <a class="btn" href="https://t.me/Makkan1985" target="_blank" rel="noopener">💬 Telegram</a>
-      <button class="btn" onclick="doConnect()">🦊 MetaMask / Trust</button>
+
+      <!-- Мобильные deep-links -->
+      <button class="btn" onclick="openInMetaMask()">🦊 Open in MetaMask</button>
+      <button class="btn" onclick="openInTrust()">🔓 Open in Trust</button>
+
+      <!-- Кошелёк + доп. кнопки -->
+      <button class="btn" onclick="doConnect()">🔗 Connect Wallet</button>
       <a class="btn" href="https://pancakeswap.finance/add/BNB/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C?chain=bsc" target="_blank" rel="noopener">💧 Add Liquidity</a>
       <a class="btn" href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">🛒 Buy on PancakeSwap</a>
       <a class="btn" href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank" rel="noopener">🧭 GeckoTerminal</a>
@@ -95,6 +101,8 @@ footer{margin:16px 0;color:#9aa0a6}
 
       <div class="btns">
         <button class="btn-red" onclick="doConnect()">Connect</button>
+        <button class="btn-red" onclick="openInMetaMask()">Open in MetaMask</button>
+        <button class="btn-red" onclick="openInTrust()">Open in Trust</button>
         <button class="btn-red" onclick="start()">Start</button>
         <button class="btn-red" onclick="stop()">Stop</button>
         <button class="btn-red" onclick="requestPayout()">Request Payout (≥300 BGB)</button>
@@ -133,9 +141,9 @@ footer{margin:16px 0;color:#9aa0a6}
   function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
   function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
 
-  // === адрес токена BGB на BSC (используем как "генезис")
+  // === адрес токена BGB на BSC (генезис)
   const CONTRACT_ADDR = '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C';
-  const GENESIS = CONTRACT_ADDR.toLowerCase(); // первый prev
+  const GENESIS = CONTRACT_ADDR.toLowerCase();
 
   // ===== state
   const UNIT=300n*10n**18n;               // порог выплаты 300 BGB
@@ -143,23 +151,26 @@ footer{margin:16px 0;color:#9aa0a6}
   const TRIES=128, LOG_MAX=400, VIEW_MAX=220;
   const BLOCK_TARGET_TIME=10, RETARGET_INTERVAL=20;
 
-  const KEY='bgb_miner_ui_v5';
+  const KEY='bgb_miner_ui_v6';
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
 
-  // защита от повторов хэшей (скользящее окно)
+  // уникальные хэши (скользящее окно)
   const seen=new Set(); const queue=[];
   function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>2000){ const old=queue.shift(); seen.delete(old); } return true; }
 
-  function save(){ try{ localStorage.setItem(KEY+':'+(S.addr||'guest'), JSON.stringify({...S,accrued:S.accrued.toString()})); }catch{} }
+  function save(){ try{ localStorage.setItem(KEY+':'+(S.addr||'guest'), JSON.stringify({...S,accrued:S.accrued.toString(), _seenQueue:queue.slice(-2000)})); }catch{} }
   function load(addr){
     try{ const raw=localStorage.getItem(KEY+':'+(addr||'guest'));
       if(!raw){ S=DEF(); S.addr=addr||null; return; }
       const p=JSON.parse(raw); S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null;
+      // восстановить окно уникальности
+      queue.length=0; seen.clear();
+      (p._seenQueue||[]).slice(-2000).forEach(h=>{ if(typeof h==='string'){ queue.push(h); seen.add(h); }});
     }catch{ S=DEF(); S.addr=addr||null; }
   }
 
-  // активные вкладки (локально)
+  // активные вкладки
   const TAB_PREFIX='BGB_TAB_'; const TAB_ID=randHex(6);
   function heartbeat(){ try{ localStorage.setItem(TAB_PREFIX+TAB_ID, String(Date.now())); }catch{} }
   function countTabs(){ try{
@@ -170,13 +181,13 @@ footer{margin:16px 0;color:#9aa0a6}
   setInterval(()=>{ heartbeat(); countTabs(); }, 3000); heartbeat(); countTabs();
 
   // UI
-  const HR_DISPLAY_BASE = 5.00; // просто красивая цифра для UI
+  const HR_DISPLAY_BASE = 5.00;
   let hrJ=0;
   function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
   function render(){
     $('w').textContent=S.addr?S.addr.slice(0,6)+'…'+S.addr.slice(-4):'—';
 
-    // показать генезис и ссылку на BscScan
+    // генезис + ссылка
     const genEl = $('gen');
     if (genEl) {
       genEl.textContent = GENESIS.slice(0,10)+'…'+GENESIS.slice(-6);
@@ -203,7 +214,7 @@ footer{margin:16px 0;color:#9aa0a6}
     ].join('');
   }
 
-  // псевдо-мемпул
+  // псевдо-мемпул (для вида)
   let mp={c:0,f:0,s:0};
   function updMP(){ $('mpc').textContent=mp.c; $('mpf').textContent=mp.f.toFixed(2); $('mps').textContent=mp.s; }
 
@@ -225,7 +236,6 @@ footer{margin:16px 0;color:#9aa0a6}
       const header=JSON.stringify({ver:1,prev,time:now,bits:S.bits,nonce,salt,ctr});
       const h=k256(header);
 
-      // уникальность
       if(!remember(h)) { i--; continue; }
 
       const line=`${h} bits=0x${S.bits.toString(16)} nonce=${nonce} salt=${salt} ctr=${ctr} ← ${prev.slice(0,18)}…`;
@@ -234,7 +244,6 @@ footer{margin:16px 0;color:#9aa0a6}
         const blk={idx:S.height+1,time:now,bits:S.bits,nonce,prev,hash:h};
         S.chain.push(blk); S.height=blk.idx; S.shares=(S.shares||0)+1;
 
-        // +1 BGB МГНОВЕННО ЗА БЛОК
         S.accrued += BLOCK_REWARD;
 
         pushLine(`${line}  (+1 BGB)`,true);
@@ -252,7 +261,6 @@ footer{margin:16px 0;color:#9aa0a6}
 
   function tick(){
     if(!S.running) return;
-    // псевдо-мемпул и отображение
     mp.c=Math.max(0,Math.round(mp.c+(Math.random()*6-3)));
     mp.f=Math.max(0.1,mp.f+(Math.random()*0.2-0.1));
     mp.s=Math.max(0,Math.round(mp.s+(Math.random()*6-3)));
@@ -261,12 +269,27 @@ footer{margin:16px 0;color:#9aa0a6}
     mineBatch(); save(); render();
   }
 
+  // ===== Deep links для телефонов
+  function openInMetaMask(){
+    const dapp = 'https://metamask.app.link/dapp/' + location.host + location.pathname + (location.search||'');
+    window.open(dapp,'_blank','noopener,noreferrer');
+  }
+  function openInTrust(){
+    const dapp = 'https://link.trustwallet.com/open_url?source=dapp&url=' + encodeURIComponent(location.href);
+    window.open(dapp,'_blank','noopener,noreferrer');
+  }
+
   // actions
   async function doConnect(){
     try{
       const injected=(window.__bgb_provider||window.ethereum||window.trustwallet);
       if(!injected){
-        alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.');
+        // Плавная подсказка для мобильных
+        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+          if (confirm('Открыть сайт в MetaMask?')) { openInMetaMask(); return; }
+          if (confirm('Открыть в Trust Wallet?')) { openInTrust(); return; }
+        }
+        alert('Откройте сайт в браузере кошелька (MetaMask/Trust) или нажмите кнопки Open in MetaMask / Open in Trust.');
         return;
       }
       if(injected.request){ await injected.request({method:'eth_requestAccounts'}); }
@@ -279,7 +302,7 @@ footer{margin:16px 0;color:#9aa0a6}
   function stop(){ S.running=false; $('msg').textContent='Paused'; }
   function toggleLog(){ const el=$('log'); el.style.display=(el.style.display==='none'?'block':'none'); }
 
-  // Claim (без подписи, сразу JSON)
+  // Claim
   function requestPayout(){
     if(S.accrued<UNIT){ alert('Нужно минимум 300 BGB для запроса выплаты!'); return; }
     if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; }
@@ -295,11 +318,12 @@ footer{margin:16px 0;color:#9aa0a6}
     $('claim').style.display='flex';
   }
   async function copyClaim(){ try{ await navigator.clipboard.writeText($('claimText').textContent); alert('Скопировано! Отправьте админу в Telegram.'); }catch{} }
-  function openTG(){ const txt=encodeURIComponent('Заявка на выплату BGB:\н\n'+$('claimText').textContent); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
+  function openTG(){ const txt=encodeURIComponent('Заявка на выплату BGB:\n\n'+$('claimText').textContent); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
   // boot
   load(null);
+  // стартовый лог
   pushLine('Mining log (white = try, green = accepted)',false);
   render(); updMP();
   setInterval(tick,500);
