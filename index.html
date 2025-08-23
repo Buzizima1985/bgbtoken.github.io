@@ -2,130 +2,134 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>BGB Token • Mining</title>
+  <title>BGB Token Mining</title>
   <style>
-    body { background:#111; color:#fff; font-family:Arial,sans-serif; margin:0; }
-    h1 { text-align:center; color:orange; margin:20px 0; }
-    .topmenu { text-align:center; margin:20px; }
-    .btn { display:inline-block; margin:5px; padding:10px 18px; background:red; border-radius:8px; color:#fff; font-weight:bold; cursor:pointer; }
-    .btn:hover { background:#c00; }
-    .panel { max-width:800px; margin:0 auto; background:#1b1b1b; padding:20px; border-radius:12px; }
-    .status { margin:10px 0; font-weight:bold; }
-    .progress { height:6px; background:#333; border-radius:3px; overflow:hidden; margin:10px 0; }
-    .bar { height:6px; background:lime; width:0%; }
-    #log { background:#000; padding:10px; height:250px; overflow-y:scroll; font-family:monospace; font-size:12px; border-radius:6px; }
-    .green { color:#00ff66; }
+    body { background:#0d0d0d; color:#fff; font-family:Arial, sans-serif; margin:0; }
+    header { text-align:center; padding:15px; font-size:28px; font-weight:bold; color:orange; }
+    header span { display:block; font-size:14px; margin-top:5px; color:#ffcc00; }
+    .menu { text-align:center; margin:20px; }
+    .menu button { background:red; border:none; padding:10px 20px; margin:5px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; }
+    .panel { max-width:800px; margin:0 auto; background:#1a1a1a; padding:20px; border-radius:10px; box-shadow:0 0 20px #000; }
+    .stats { margin-bottom:10px; font-size:14px; }
+    .progress { height:10px; background:#333; border-radius:5px; margin:10px 0; }
+    .progress-bar { height:10px; background:lime; width:0%; border-radius:5px; }
+    .log { background:#000; padding:10px; height:200px; overflow:auto; font-size:12px; border-radius:5px; margin-top:10px; }
     .white { color:#ccc; }
+    .green { color:#0f0; font-weight:bold; }
+    .buttons { text-align:center; margin-top:15px; }
+    .buttons button { background:red; border:none; padding:10px 20px; margin:5px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; }
+    footer { text-align:center; font-size:12px; color:#888; margin:20px 0; }
   </style>
 </head>
 <body>
+  <header>
+    BGB Token
+    <span>⛏ Майнинг токенов прямо в браузере — 1 блок = 1 BGB. Минимум 300 BGB для выплаты.</span>
+  </header>
 
-  <h1>BGB Token</h1>
-  <div class="topmenu">
-    <div class="btn">📄 BSC Scan</div>
-    <div class="btn">💬 Telegram</div>
-    <div class="btn">🦊 MetaMask / Trust</div>
-    <div class="btn">💧 Add Liquidity</div>
-    <div class="btn">🛒 Buy on PancakeSwap</div>
-    <div class="btn">🦎 GeckoTerminal</div>
+  <div class="menu">
+    <button>BSC Scan</button>
+    <button>Telegram</button>
+    <button>MetaMask / Trust</button>
+    <button>Add Liquidity</button>
+    <button>Buy on PancakeSwap</button>
+    <button>GeckoTerminal</button>
   </div>
 
   <div class="panel">
-    <h2>BGB Mining</h2>
-    <div>Wallet: <span id="wallet">—</span></div>
-    <div>Hashrate: <span id="hashrate">—</span> • Difficulty bits: <span id="bits">—</span></div>
-    <div>Height: <span id="height">0</span> • Last block: <span id="lastblock">—</span></div>
-    <div>Target: <span id="target">—</span> • Next retarget in: <span id="retarget">—</span></div>
-    <div>Accepted: <span id="accepted">0</span></div>
-    <div class="progress"><div class="bar" id="bar"></div></div>
-    <div>Accrued: <span id="accrued">0.0000</span> BGB</div>
-    <div class="status">Status: <span id="status">ready</span></div>
-    <div style="margin:15px 0;">
-      <button class="btn" onclick="startMining()">Start</button>
-      <button class="btn" onclick="stopMining()">Stop</button>
-      <button class="btn" onclick="requestPayout()">Request Payout (≥300 BGB)</button>
-      <button class="btn" onclick="showChain()">Chain</button>
+    <div class="stats">
+      Wallet: <span id="wallet">—</span><br>
+      Hashrate: <span id="hashrate">—</span><br>
+      Height: <span id="height">0</span> - Last block: <span id="lastblock">—</span><br>
+      Difficulty: <span id="difficulty">0x1f00ffff</span><br>
+      Target: <span id="target">—</span><br>
+      Active miners: <span id="miners">1</span><br>
+      Accepted: <span id="accepted">0</span>
     </div>
-    <div id="log"></div>
+
+    <div>Accrued: <span id="balance">0.0000</span> BGB</div>
+    <div class="progress"><div class="progress-bar" id="progressbar"></div></div>
+    <div>Status: <span id="status">ready</span></div>
+
+    <div class="log" id="log"></div>
+
+    <div class="buttons">
+      <button id="connect">Connect</button>
+      <button id="start">Start</button>
+      <button id="stop">Stop</button>
+      <button id="payout">Request Payout (≥300 BGB)</button>
+      <button id="chain">Chain</button>
+    </div>
   </div>
 
+  <footer>© 2025 BGB Token. Все права защищены.</footer>
+
   <script>
-    let mining = false;
-    let accrued = parseFloat(localStorage.getItem("bgb_accrued") || "0");
-    let accepted = parseInt(localStorage.getItem("bgb_blocks") || "0");
-    let height = parseInt(localStorage.getItem("bgb_height") || "0");
+    let mining=false, balance=parseFloat(localStorage.getItem("bgb_balance")||"0");
+    let height=parseInt(localStorage.getItem("bgb_height")||"0");
+    let accepted=parseInt(localStorage.getItem("bgb_accepted")||"0");
+    let log=document.getElementById("log");
+    let interval, wallet="0x"+Math.random().toString(16).substr(2,38);
 
-    document.getElementById("accrued").textContent = accrued.toFixed(4);
-    document.getElementById("accepted").textContent = accepted;
+    document.getElementById("wallet").textContent = wallet.substr(0,6)+"..."+wallet.substr(-4);
+    document.getElementById("balance").textContent = balance.toFixed(4);
     document.getElementById("height").textContent = height;
+    document.getElementById("accepted").textContent = accepted;
 
-    function log(msg, green=false) {
-      const logBox = document.getElementById("log");
-      const div = document.createElement("div");
-      div.textContent = msg;
-      div.className = green ? "green" : "white";
-      logBox.appendChild(div);
-      logBox.scrollTop = logBox.scrollHeight;
+    function addLog(msg, cls="white"){
+      let div=document.createElement("div");
+      div.className=cls;
+      div.textContent=msg;
+      log.appendChild(div);
+      log.scrollTop=log.scrollHeight;
     }
 
-    function updateProgress() {
-      let percent = Math.min((accrued/300)*100, 100);
-      document.getElementById("bar").style.width = percent + "%";
+    function startMining(){
+      if(mining) return;
+      mining=true;
+      document.getElementById("status").textContent="mining...";
+      interval=setInterval(()=>{
+        let hash="0x"+[...crypto.getRandomValues(new Uint8Array(32))].map(x=>x.toString(16).padStart(2,"0")).join("");
+        if(Math.random()<0.15){ // найден блок
+          height++; accepted++; balance++;
+          localStorage.setItem("bgb_balance",balance);
+          localStorage.setItem("bgb_height",height);
+          localStorage.setItem("bgb_accepted",accepted);
+          document.getElementById("balance").textContent=balance.toFixed(4);
+          document.getElementById("height").textContent=height;
+          document.getElementById("accepted").textContent=accepted;
+          document.getElementById("lastblock").textContent=hash.substr(0,12)+"...";
+          let pct=Math.min((balance/300)*100,100);
+          document.getElementById("progressbar").style.width=pct+"%";
+          addLog("✔ Accepted block: "+hash,"green");
+        } else {
+          addLog("✖ Hash tried: "+hash,"white");
+        }
+      },500);
     }
 
-    function mineHash() {
-      if (!mining) return;
-      const hash = "0x"+crypto.getRandomValues(new Uint32Array(8)).join("");
-      const success = Math.random() < 0.15; // 15% шанс найти блок
-      if (success) {
-        accepted++;
-        accrued++;
-        height++;
-        localStorage.setItem("bgb_accrued", accrued);
-        localStorage.setItem("bgb_blocks", accepted);
-        localStorage.setItem("bgb_height", height);
-        document.getElementById("accrued").textContent = accrued.toFixed(4);
-        document.getElementById("accepted").textContent = accepted;
-        document.getElementById("height").textContent = height;
-        log("Accepted block: "+hash, true);
-        updateProgress();
-      } else {
-        log("Hash tried: "+hash, false);
-      }
-      setTimeout(mineHash, 200); // скорость майнинга
+    function stopMining(){
+      mining=false;
+      clearInterval(interval);
+      document.getElementById("status").textContent="stopped";
     }
 
-    function startMining() {
-      if (mining) return;
-      mining = true;
-      document.getElementById("status").textContent = "mining...";
-      mineHash();
-    }
-
-    function stopMining() {
-      mining = false;
-      document.getElementById("status").textContent = "stopped";
-    }
-
-    function requestPayout() {
-      if (accrued < 300) {
+    document.getElementById("start").onclick=startMining;
+    document.getElementById("stop").onclick=stopMining;
+    document.getElementById("payout").onclick=()=>{
+      if(balance<300){
         alert("Нужно минимум 300 BGB для запроса выплаты!");
         return;
       }
-      let msg = `BGB Claim Request\nWallet: ${document.getElementById("wallet").textContent}\nBlocks: ${accepted}\nAccrued: ${accrued} BGB`;
-      alert("Скопируй это сообщение и отправь админу в Telegram:\n\n"+msg);
-    }
-
-    function showChain() {
-      alert("Цепочка блоков высотой "+height+" сохранена локально.");
-    }
-
-    updateProgress();
+      let payload={
+        address:wallet,
+        accrued:balance,
+        height:height,
+        accepted:accepted,
+        ts:new Date().toISOString()
+      };
+      alert("Скопируйте это сообщение и отправьте администратору в Telegram:\n\n"+JSON.stringify(payload,null,2));
+    };
   </script>
-
-  <footer style="text-align:center; margin:20px; color:#888;">
-    © 2025 BGB Token. Все права защищены.
-  </footer>
-
 </body>
 </html>
