@@ -73,6 +73,7 @@ footer{margin:16px 0;color:#9aa0a6}
       <div class="hdr">BGB Mining</div>
 
       <div class="row">Wallet: <span id="w">—</span></div>
+      <div class="row">Token (genesis): <a id="gen" href="#" target="_blank" rel="noopener" style="color:#7dd3fc;text-decoration:none"></a></div>
       <div class="row">Hashrate: <span id="hr">—</span> • Difficulty bits: <span id="bits">—</span></div>
       <div class="row">Height: <span id="h">0</span> • Last block: <span id="last">—</span></div>
       <div class="row">Target: <span id="tgt">—</span> • Next retarget in: <span id="rtg">—</span></div>
@@ -83,6 +84,7 @@ footer{margin:16px 0;color:#9aa0a6}
         <span class="tag">Avg fee: <b id="mpf">0.00</b> gwei</span>
         <span class="tag">Size: <b id="mps">0</b> kB</span>
         <span class="tag ok">Accepted: <b id="accp">0</b></span>
+        <span class="tag">Blocks mined: <b id="blkCount">0</b></span>
       </div>
 
       <div class="acc">Accrued: <span id="acc">0.0000</span> BGB</div>
@@ -93,8 +95,6 @@ footer{margin:16px 0;color:#9aa0a6}
 
       <div class="btns">
         <button class="btn-red" onclick="doConnect()">Connect</button>
-        <button class="btn-red" onclick="openInMetaMask()">Open in MetaMask</button>
-        <button class="btn-red" onclick="openInTrust()">Open in Trust</button>
         <button class="btn-red" onclick="start()">Start</button>
         <button class="btn-red" onclick="stop()">Stop</button>
         <button class="btn-red" onclick="requestPayout()">Request Payout (≥300 BGB)</button>
@@ -113,11 +113,10 @@ footer{margin:16px 0;color:#9aa0a6}
   <div id="claim" class="modal" role="dialog" aria-modal="true">
     <div class="card">
       <h3>Claim Payload</h3>
-      <p>Скопируйте сообщение или подпишите и отправьте администратору в Telegram для получения токенов.</p>
+      <p>Скопируйте это сообщение и отправьте администратору в Telegram для получения токенов.</p>
       <pre id="claimText">{}</pre>
       <div class="row">
         <button class="btn-red" onclick="copyClaim()">Copy</button>
-        <button class="btn-red" onclick="signAndCopy()">Sign & Copy</button>
         <button class="btn-red" onclick="openTG()">Open Telegram</button>
         <button class="btn-red" onclick="closeClaim()">Close</button>
       </div>
@@ -133,72 +132,31 @@ footer{margin:16px 0;color:#9aa0a6}
   function fmtB(x,dp=4){const d=10n**18n;const i=x/d;const f=(x%d).toString().padStart(18,'0').slice(0,dp);return `${i}.${f}`}
   function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
   function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
-  const toHex = (str)=> ethers.hexlify(ethers.toUtf8Bytes(str));
+
+  // === адрес токена BGB на BSC (используем как "генезис")
+  const CONTRACT_ADDR = '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C';
+  const GENESIS = CONTRACT_ADDR.toLowerCase(); // первый prev
 
   // ===== state
   const UNIT=300n*10n**18n;               // порог выплаты 300 BGB
   const BLOCK_REWARD = 1n*10n**18n;       // 1 BGB за принятый блок
   const TRIES=128, LOG_MAX=400, VIEW_MAX=220;
   const BLOCK_TARGET_TIME=10, RETARGET_INTERVAL=20;
-  const GENESIS='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d';
 
   const KEY='bgb_miner_ui_v5';
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
 
-  // защита от повторов хэшей (скользящее окно) + его сохранение
+  // защита от повторов хэшей (скользящее окно)
   const seen=new Set(); const queue=[];
   function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>2000){ const old=queue.shift(); seen.delete(old); } return true; }
 
-  // ===== persistence
-  function saveKey(addr){ return KEY+':'+(addr||'guest'); }
-
-  function save(){
-    try{
-      const payload = {
-        ...S,
-        accrued: S.accrued.toString(), // BigInt -> string
-        _seenQueue: queue.slice(-2000), // сохраняем окно уникальности
-        _v: 3
-      };
-      localStorage.setItem(saveKey(S.addr), JSON.stringify(payload));
-    }catch(e){ /* ignore */ }
-  }
-
+  function save(){ try{ localStorage.setItem(KEY+':'+(S.addr||'guest'), JSON.stringify({...S,accrued:S.accrued.toString()})); }catch{} }
   function load(addr){
-    try{
-      const raw = localStorage.getItem(saveKey(addr));
-      if(!raw){ S = DEF(); S.addr = addr || null; return; }
-      const p = JSON.parse(raw);
-
-      S = { ...DEF(), ...p };
-      if (typeof S.accrued === 'string') S.accrued = BigInt(S.accrued);
-      S.addr = addr || null;
-
-      if (!Array.isArray(S.chain)) S.chain = [];
-
-      // восстановить окно уникальности
-      queue.length = 0;
-      seen.clear();
-      const seed = Array.isArray(p._seenQueue) ? p._seenQueue.slice(-2000) : [];
-      for (const h of seed){ if(typeof h === 'string'){ queue.push(h); seen.add(h); } }
-    }catch(e){
-      S = DEF(); S.addr = addr || null;
-    }
-  }
-
-  // миграция guest → адрес (если у адреса пусто)
-  function migrateGuestTo(addr){
-    try{
-      const guestRaw = localStorage.getItem(saveKey(null));
-      const addrKey  = saveKey(addr);
-      const addrRaw  = localStorage.getItem(addrKey);
-      if(!guestRaw) return;
-      if(addrRaw)  return;
-      localStorage.setItem(addrKey, guestRaw);
-      // при желании можно очистить guest:
-      // localStorage.removeItem(saveKey(null));
-    }catch(e){ /* ignore */ }
+    try{ const raw=localStorage.getItem(KEY+':'+(addr||'guest'));
+      if(!raw){ S=DEF(); S.addr=addr||null; return; }
+      const p=JSON.parse(raw); S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null;
+    }catch{ S=DEF(); S.addr=addr||null; }
   }
 
   // активные вкладки (локально)
@@ -212,11 +170,19 @@ footer{margin:16px 0;color:#9aa0a6}
   setInterval(()=>{ heartbeat(); countTabs(); }, 3000); heartbeat(); countTabs();
 
   // UI
-  const HR_DISPLAY_BASE = 5.00; // визуал
+  const HR_DISPLAY_BASE = 5.00; // просто красивая цифра для UI
   let hrJ=0;
   function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
   function render(){
     $('w').textContent=S.addr?S.addr.slice(0,6)+'…'+S.addr.slice(-4):'—';
+
+    // показать генезис и ссылку на BscScan
+    const genEl = $('gen');
+    if (genEl) {
+      genEl.textContent = GENESIS.slice(0,10)+'…'+GENESIS.slice(-6);
+      genEl.href = 'https://bscscan.com/token/'+CONTRACT_ADDR;
+    }
+
     hrJ+=(Math.random()-0.5)*0.1; hrJ=Math.max(-0.5,Math.min(0.5,hrJ));
     const hr=Math.max(0,HR_DISPLAY_BASE*(1+hrJ/10)).toFixed(2);
     $('hr').textContent=`${hr} H/s`;
@@ -228,6 +194,7 @@ footer{margin:16px 0;color:#9aa0a6}
     $('acc').textContent=fmtB(S.accrued,4);
     $('bar').style.width=Math.min(100,Number(S.accrued*100n/UNIT))+'%';
     $('accp').textContent=S.shares||0;
+    const bc=$('blkCount'); if(bc) bc.textContent=S.height||0;
 
     const log=$('log');
     log.innerHTML=[
@@ -267,13 +234,12 @@ footer{margin:16px 0;color:#9aa0a6}
         const blk={idx:S.height+1,time:now,bits:S.bits,nonce,prev,hash:h};
         S.chain.push(blk); S.height=blk.idx; S.shares=(S.shares||0)+1;
 
-        // +1 BGB за блок
+        // +1 BGB МГНОВЕННО ЗА БЛОК
         S.accrued += BLOCK_REWARD;
 
         pushLine(`${line}  (+1 BGB)`,true);
         $('msg').textContent=`Mined block #${blk.idx}  (+1 BGB)`;
 
-        // ретаргет каждые 20 блоков
         if(S.height % RETARGET_INTERVAL===0) retarget();
 
         save(); render();
@@ -286,8 +252,7 @@ footer{margin:16px 0;color:#9aa0a6}
 
   function tick(){
     if(!S.running) return;
-
-    // псевдо-мемпул (только отображение)
+    // псевдо-мемпул и отображение
     mp.c=Math.max(0,Math.round(mp.c+(Math.random()*6-3)));
     mp.f=Math.max(0.1,mp.f+(Math.random()*0.2-0.1));
     mp.s=Math.max(0,Math.round(mp.s+(Math.random()*6-3)));
@@ -296,136 +261,48 @@ footer{margin:16px 0;color:#9aa0a6}
     mineBatch(); save(); render();
   }
 
-  // ===== Deep links for mobile
-  function openInMetaMask(){
-    const dapp = 'https://metamask.app.link/dapp/' + location.host + location.pathname + (location.search||'');
-    window.open(dapp,'_blank','noopener,noreferrer');
-  }
-  function openInTrust(){
-    const dapp = 'https://link.trustwallet.com/open_url?source=dapp&url=' + encodeURIComponent(location.href);
-    window.open(dapp,'_blank','noopener,noreferrer');
-  }
-
   // actions
   async function doConnect(){
     try{
       const injected=(window.__bgb_provider||window.ethereum||window.trustwallet);
       if(!injected){
-        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-          if (confirm('Похоже, вы открыли сайт вне кошелька. Открыть в MetaMask?')) {
-            openInMetaMask();
-            return;
-          } else if (confirm('Открыть в Trust Wallet?')) {
-            openInTrust();
-            return;
-          }
-        }
-        alert('Откройте сайт в браузере кошелька (MetaMask/Trust) или нажмите "Open in MetaMask / Open in Trust".');
+        alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.');
         return;
       }
       if(injected.request){ await injected.request({method:'eth_requestAccounts'}); }
       const p=new ethers.BrowserProvider(injected);
-      const s=await p.getSigner();
-      const addr=await s.getAddress();
-
-      // миграция guest → адрес (если у адреса пусто)
-      migrateGuestTo(addr);
-
-      // загрузить профиль адреса
-      load(addr);
-      S.addr=addr;
-      save(); render();
+      const s=await p.getSigner(); const addr=await s.getAddress();
+      load(addr); S.addr=addr; save(); render();
     }catch(e){ console.error(e); alert('Не удалось подключить кошелёк'); }
   }
   function start(){ if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; } S.running=true; S.lastMs=Date.now(); $('msg').textContent='Mining…'; }
   function stop(){ S.running=false; $('msg').textContent='Paused'; }
   function toggleLog(){ const el=$('log'); el.style.display=(el.style.display==='none'?'block':'none'); }
 
-  // ===== Claim helpers
-  function buildClaimPayload(){
-    const pay=S.accrued-(S.accrued%UNIT);
-    const last=S.chain.at(-1);
-    const recent = S.chain.slice(-20).map(b=>({ idx:b.idx, hash:b.hash, time:b.time })); // последние 20 блоков
-
-    return {
-      address:S.addr||'0x',
-      session:S.session,
-      amountBGB:(Number(pay)/1e18).toFixed(3),
-      amountWei:pay.toString(),
-      height:S.height,
-      lastBlock:last?last.hash:null,
-      bits:S.bits,
-      ts:new Date().toISOString(),
-      recentBlocks: recent,
-      message:
-`BGB Claim Request
-Address: ${S.addr||'-'}
-Session: ${S.session}
-Amount: ${(Number(pay)/1e18).toFixed(3)} BGB
-Height: ${S.height}
-Bits: 0x${S.bits.toString(16)}
-Last: ${last?last.hash:'-'}
-Time: ${new Date().toISOString()}`
-    };
-  }
-
-  // Claim (без подписи или с подписью)
+  // Claim (без подписи, сразу JSON)
   function requestPayout(){
     if(S.accrued<UNIT){ alert('Нужно минимум 300 BGB для запроса выплаты!'); return; }
     if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; }
-    const payload=buildClaimPayload();
+    const pay=S.accrued-(S.accrued%UNIT), last=S.chain.at(-1);
+    const payload={
+      address:S.addr, session:S.session,
+      amountBGB:(Number(pay)/1e18).toFixed(3), amountWei:pay.toString(),
+      height:S.height, lastBlock:last?last.hash:null, bits:S.bits,
+      ts:new Date().toISOString(),
+      message:`BGB Claim Request\nAddress: ${S.addr}\nSession: ${S.session}\nAmount: ${(Number(pay)/1e18).toFixed(3)} BGB\nHeight: ${S.height}\nBits: 0x${S.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nTime: ${new Date().toISOString()}`
+    };
     $('claimText').textContent=JSON.stringify(payload,null,2);
     $('claim').style.display='flex';
   }
-
-  async function signAndCopy(){
-    try{
-      const injected=(window.ethereum||window.trustwallet);
-      if(!injected){ alert('Откройте сайт в MetaMask/Trust и подключите кошелёк.'); return; }
-      if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; }
-
-      const payload=buildClaimPayload();
-      const hexMsg = toHex(payload.message);
-
-      let sig;
-      try{
-        sig = await injected.request({ method:'personal_sign', params:[hexMsg, S.addr] });
-      }catch(e1){
-        // некоторые кошельки ожидают адрес первым
-        sig = await injected.request({ method:'personal_sign', params:[S.addr, hexMsg] });
-      }
-
-      const out = { ...payload, signature: sig, signer: S.addr, scheme:'personal_sign' };
-      const txt = JSON.stringify(out,null,2);
-      $('claimText').textContent = txt;
-      await navigator.clipboard.writeText(txt);
-      alert('Подписано и скопировано! Отправьте админу в Telegram.');
-    }catch(e){
-      console.error(e);
-      alert('Не удалось подписать. Попробуйте ещё раз.');
-    }
-  }
-
-  async function copyClaim(){
-    try{
-      await navigator.clipboard.writeText($('claimText').textContent);
-      alert('Скопировано! Отправьте админу в Telegram.');
-    }catch{}
-  }
-  function openTG(){
-    const txt=encodeURIComponent('Заявка на выплату BGB:\n\n'+$('claimText').textContent);
-    window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer');
-  }
+  async function copyClaim(){ try{ await navigator.clipboard.writeText($('claimText').textContent); alert('Скопировано! Отправьте админу в Telegram.'); }catch{} }
+  function openTG(){ const txt=encodeURIComponent('Заявка на выплату BGB:\н\n'+$('claimText').textContent); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
-  // ===== boot
+  // boot
   load(null);
   pushLine('Mining log (white = try, green = accepted)',false);
   render(); updMP();
-
-  setInterval(()=>{ if (S.running) save(); }, 5000);
   setInterval(tick,500);
-  window.addEventListener('beforeunload', save);
   </script>
 </body>
 </html>
