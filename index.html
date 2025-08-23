@@ -144,16 +144,61 @@ footer{margin:16px 0;color:#9aa0a6}
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
 
-  // защита от повторов хэшей (скользящее окно)
+  // защита от повторов хэшей (скользящее окно) + его сохранение
   const seen=new Set(); const queue=[];
   function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>2000){ const old=queue.shift(); seen.delete(old); } return true; }
 
-  function save(){ try{ localStorage.setItem(KEY+':'+(S.addr||'guest'), JSON.stringify({...S,accrued:S.accrued.toString()})); }catch{} }
+  // ===== persistence
+  function saveKey(addr){ return KEY+':'+(addr||'guest'); }
+
+  function save(){
+    try{
+      const payload = {
+        ...S,
+        accrued: S.accrued.toString(), // BigInt -> string
+        _seenQueue: queue.slice(-2000), // сохраняем окно уникальности
+        _v: 2
+      };
+      localStorage.setItem(saveKey(S.addr), JSON.stringify(payload));
+    }catch(e){ /* ignore */ }
+  }
+
   function load(addr){
-    try{ const raw=localStorage.getItem(KEY+':'+(addr||'guest'));
-      if(!raw){ S=DEF(); S.addr=addr||null; return; }
-      const p=JSON.parse(raw); S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null;
-    }catch{ S=DEF(); S.addr=addr||null; }
+    try{
+      const raw = localStorage.getItem(saveKey(addr));
+      if(!raw){ S = DEF(); S.addr = addr || null; return; }
+      const p = JSON.parse(raw);
+
+      // осторожное восстановление
+      S = { ...DEF(), ...p };
+      if (typeof S.accrued === 'string') S.accrued = BigInt(S.accrued);
+      S.addr = addr || null;
+
+      // цепочка — как есть
+      if (!Array.isArray(S.chain)) S.chain = [];
+
+      // восстановить окно уникальности
+      queue.length = 0;
+      seen.clear();
+      const seed = Array.isArray(p._seenQueue) ? p._seenQueue.slice(-2000) : [];
+      for (const h of seed){ if(typeof h === 'string'){ queue.push(h); seen.add(h); } }
+    }catch(e){
+      S = DEF(); S.addr = addr || null;
+    }
+  }
+
+  // миграция guest → адрес (если у адреса пусто)
+  function migrateGuestTo(addr){
+    try{
+      const guestRaw = localStorage.getItem(saveKey(null));
+      const addrKey  = saveKey(addr);
+      const addrRaw  = localStorage.getItem(addrKey);
+      if(!guestRaw) return;
+      if(addrRaw)  return;
+      localStorage.setItem(addrKey, guestRaw);
+      // при желании можно очистить guest:
+      // localStorage.removeItem(saveKey(null));
+    }catch(e){ /* ignore */ }
   }
 
   // активные вкладки (локально)
@@ -167,7 +212,7 @@ footer{margin:16px 0;color:#9aa0a6}
   setInterval(()=>{ heartbeat(); countTabs(); }, 3000); heartbeat(); countTabs();
 
   // UI
-  const HR_DISPLAY_BASE = 5.00; // просто красивая цифра для UI
+  const HR_DISPLAY_BASE = 5.00; // просто цифра для UI
   let hrJ=0;
   function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
   function render(){
@@ -222,13 +267,13 @@ footer{margin:16px 0;color:#9aa0a6}
         const blk={idx:S.height+1,time:now,bits:S.bits,nonce,prev,hash:h};
         S.chain.push(blk); S.height=blk.idx; S.shares=(S.shares||0)+1;
 
-        // +1 BGB МГНОВЕННО ЗА БЛОК
+        // +1 BGB за блок
         S.accrued += BLOCK_REWARD;
 
         pushLine(`${line}  (+1 BGB)`,true);
         $('msg').textContent=`Mined block #${blk.idx}  (+1 BGB)`;
 
-        // ретаргет КАЖДЫЕ 20 БЛОКОВ
+        // ретаргет каждые 20 блоков
         if(S.height % RETARGET_INTERVAL===0) retarget();
 
         save(); render();
@@ -242,7 +287,7 @@ footer{margin:16px 0;color:#9aa0a6}
   function tick(){
     if(!S.running) return;
 
-    // псевдо-мемпул и отображение
+    // псевдо-мемпул (только отображение)
     mp.c=Math.max(0,Math.round(mp.c+(Math.random()*6-3)));
     mp.f=Math.max(0.1,mp.f+(Math.random()*0.2-0.1));
     mp.s=Math.max(0,Math.round(mp.s+(Math.random()*6-3)));
@@ -266,7 +311,6 @@ footer{margin:16px 0;color:#9aa0a6}
     try{
       const injected=(window.__bgb_provider||window.ethereum||window.trustwallet);
       if(!injected){
-        // если не внутри кошелька — подскажем открыть dApp внутри MM/Trust
         if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
           if (confirm('Похоже, вы открыли сайт вне кошелька. Открыть в MetaMask?')) {
             openInMetaMask();
@@ -283,7 +327,14 @@ footer{margin:16px 0;color:#9aa0a6}
       const p=new ethers.BrowserProvider(injected);
       const s=await p.getSigner();
       const addr=await s.getAddress();
-      load(addr); S.addr=addr; save(); render();
+
+      // миграция guest → адрес (если у адреса пусто)
+      migrateGuestTo(addr);
+
+      // загрузить профиль адреса
+      load(addr);
+      S.addr=addr;
+      save(); render();
     }catch(e){ console.error(e); alert('Не удалось подключить кошелёк'); }
   }
   function start(){ if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; } S.running=true; S.lastMs=Date.now(); $('msg').textContent='Mining…'; }
@@ -309,11 +360,20 @@ footer{margin:16px 0;color:#9aa0a6}
   function openTG(){ const txt=encodeURIComponent('Заявка на выплату BGB:\n\n'+$('claimText').textContent); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
-  // boot
+  // ===== boot
+  // 1) восстанавливаем guest-сессию, чтобы работало до коннекта
   load(null);
   pushLine('Mining log (white = try, green = accepted)',false);
   render(); updMP();
+
+  // периодический сейв во время майнинга
+  setInterval(()=>{ if (S.running) save(); }, 5000);
+
+  // основной цикл
   setInterval(tick,500);
+
+  // сейв перед закрытием вкладки
+  window.addEventListener('beforeunload', save);
   </script>
 </body>
 </html>
