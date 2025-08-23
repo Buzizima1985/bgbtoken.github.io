@@ -25,10 +25,17 @@
   #sm-bar{height:100%;width:0%;background:#00ff88;transition:width .30s ease}
   .mempool{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}
   .tag{background:#131820;color:#cbd5e1;border:1px solid #2a3240;padding:4px 8px;border-radius:999px;font-size:12px}
+  .tag.success{border-color:#00ff88;color:#00ff88}
+  #miners-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
   .miner-card .btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
   .miner-card .btn-red{padding:10px 18px;font-size:15px;border-radius:10px;background:var(--accent);color:#fff;border:none;box-shadow:0 0 10px #e60000;cursor:pointer}
   .miner-card .btn-red:hover{background:var(--accent2);transform:scale(1.05)}
+
   .list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:160px;overflow:auto;background:#0b0f14;border:1px solid #2a3240;padding:8px;border-radius:10px;margin-top:6px;text-align:left;color:#e5e7eb}
+  .list .ok{color:#00ff88}     /* принятые блоки (с наградой) */
+  .list .empty{color:#e5e7eb}  /* заголовки/прочее */
+
   footer{margin-top:20px;color:#a9b0b6;font-size:13px}
 
   .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:50;padding:16px}
@@ -58,20 +65,25 @@
       <div class="row">Hashrate: <span id="sm-hr">—</span> • Difficulty bits: <span id="sm-bits">—</span></div>
       <div class="row">Height: <span id="sm-height">0</span> • Last block: <span id="sm-last">—</span></div>
       <div class="row">Target: <span id="sm-target">—</span> • Next retarget in: <span id="sm-retarget">—</span></div>
-      <div class="row">
-        Active miners: <b id="sm-online-global">—</b>
-        <span style="opacity:.6">&nbsp;• local tabs: <span id="sm-online-local">1</span></span>
+
+      <!-- бейджи майнеров -->
+      <div class="row" id="miners-row">
+        <span class="tag">Active miners (global): <b id="sm-online-global">—</b></span>
+        <span class="tag success">Local tabs: <b id="sm-online-local">1</b></span>
       </div>
+
       <div class="mempool">
         <span class="tag">Mempool: <b id="mp-count">0</b> tx</span>
         <span class="tag">Avg fee: <b id="mp-fee">0.00</b> gwei</span>
         <span class="tag">Size: <b id="mp-size">0</b> kB</span>
-        <span class="tag">Accepted: <b id="sm-shares">0</b></span>
+        <span class="tag success">Accepted: <b id="sm-shares">0</b></span>
       </div>
+
       <div class="acc">Accrued: <span id="sm-acc">0.0000</span> BGB</div>
       <div class="bar"><div id="sm-bar"></div></div>
       <div class="row" id="sm-msg">Status: ready</div>
       <div id="sm-chain" class="list" hidden></div>
+
       <div class="btns">
         <button type="button" class="btn-red" onclick="smConnect()">Connect</button>
         <button type="button" class="btn-red" onclick="smStart()">Start</button>
@@ -110,12 +122,9 @@
 
   <script>
   // ===== FIREBASE CONFIG (опционально)
-  // Чтобы показывать настоящих «Active miners» глобально по всему миру:
-  // 1) Создай проект на https://console.firebase.google.com
-  // 2) Включи Realtime Database, добавь открытые правила чтения/записи (или анонимную auth)
-  // 3) Вставь сюда конфиг и поставь enabled: true
+  // Включи, если хочешь реальный глобальный online: FIREBASE.enabled=true и вставь конфиг.
   const FIREBASE = {
-    enabled: false, // <-- Поменяй на true и вставь конфиг ниже
+    enabled: false, // <-- поменяй на true и заполни config
     config: {
       apiKey:     "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -129,7 +138,7 @@
   </script>
 
   <script>
-  // ===== Верхние кошельковые кнопки
+  // ===== верхние кнопки
   async function handleMetaMask(e){
     e && e.preventDefault && e.preventDefault();
     const token={address:'0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',symbol:'BGB',decimals:18,image:'logo.png'};
@@ -147,69 +156,63 @@
     window.open('https://trustwallet.com/download','_blank');
   }
 
-  // ===== Майнер (персональное хранение, пул-статы, presence)
+  // ===== Майнер (персональное хранение per-wallet, presence, пул-UI)
   (function(){
-    // ------- настройки
+    // --- настройки
     const GENESIS_PREV='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d';
     const UNIT=30n*10n**18n, BASE_RATE=5n*10n**16n, BLOCK_TARGET_TIME=10, RETARGET_INTERVAL=20, MAX_VIEW=200;
 
-    // ------- presence (local tabs + optional global Firebase)
+    // --- presence локальный (tabs)
     const ONLINE_KEY='bgb_online_tabs_v1', CH_NAME='bgb_online_broadcast_v1';
     const tabId = randHex(12); const bc=('BroadcastChannel' in window)?new BroadcastChannel(CH_NAME):null;
     function getMap(){ try{return JSON.parse(localStorage.getItem(ONLINE_KEY)||'{}')}catch{return{}} }
     function setMap(m){ localStorage.setItem(ONLINE_KEY, JSON.stringify(m)) }
     function cleanup(m){ const now=Date.now(),t=15000; for(const k in m){ if((now-m[k])>t) delete m[k]; } return m; }
-    function touchLocal(){ let m=cleanup(getMap()); m[tabId]=Date.now(); setMap(m); const n=Object.keys(m).length; setLocalOnline(n); bc&&bc.postMessage({type:'online',n}); }
     function setLocalOnline(n){ const el=document.getElementById('sm-online-local'); if(el) el.textContent=n; }
+    function touchLocal(){ let m=cleanup(getMap()); m[tabId]=Date.now(); setMap(m); const n=Object.keys(m).length; setLocalOnline(n); bc&&bc.postMessage({type:'online',n}); }
     touchLocal(); setInterval(touchLocal,5000);
     window.addEventListener('storage',e=>{ if(e.key===ONLINE_KEY){ const n=Object.keys(cleanup(getMap())).length; setLocalOnline(n); }});
     bc&&bc.addEventListener('message',e=>{ if(e.data?.type==='online') setLocalOnline(e.data.n); });
     window.addEventListener('beforeunload',()=>{ const m=getMap(); delete m[tabId]; setMap(m); bc&&bc.postMessage({type:'online',n:Object.keys(m).length}); });
 
-    // Firebase глобальный онлайни
-    let fb = { enabled:false, db:null, myKey:null };
+    // --- Firebase global (опционально)
+    function setGlobalOnline(n){ const el=document.getElementById('sm-online-global'); if(el) el.textContent=n; }
     (function initFirebase(){
       try{
-        if(!FIREBASE.enabled) { setGlobalOnline('—'); return; }
+        if(!FIREBASE.enabled){ setGlobalOnline('—'); return; }
         const app = firebase.initializeApp(FIREBASE.config);
         const db = firebase.database();
-        fb = { enabled:true, db, myKey: 'tab_'+randHex(8) };
-        const ref = db.ref('presence/'+fb.myKey);
+        const key='tab_'+randHex(8); const ref=db.ref('presence/'+key);
         ref.onDisconnect().remove();
         function beat(){
-          ref.set({ts: Date.now()}).catch(()=>{});
-          // читаем общее количество
-          db.ref('presence').on('value', snap=>{
-            const val = snap.val()||{};
-            // чистим старые
-            const now=Date.now();
-            let n=0; for(const k in val){ if(now - (val[k]?.ts||0) <= 15000) n++; }
+          ref.set({ts:Date.now()}).catch(()=>{});
+          db.ref('presence').on('value',snap=>{
+            const val=snap.val()||{}; const now=Date.now(); let n=0;
+            for(const k in val){ if(now-(val[k]?.ts||0)<=15000) n++; }
             setGlobalOnline(n);
           });
         }
-        beat(); setInterval(beat, 5000);
-      }catch(e){ console.warn('Firebase disabled:', e); setGlobalOnline('—'); }
+        beat(); setInterval(beat,5000);
+      }catch(e){ console.warn('Firebase disabled:',e); setGlobalOnline('—'); }
     })();
-    function setGlobalOnline(n){ const el=document.getElementById('sm-online-global'); if(el) el.textContent=n; }
 
-    // ------- состояние per-wallet (v3)
+    // --- состояние per-wallet (v3)
     const KEY_BASE='bgb_miner_ui_v3';
     function makeKey(addr){ return KEY_BASE + ':' + (addr?addr.toLowerCase():'guest'); }
     const DEFAULT=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,session:randHex(16)});
-    let st = DEFAULT();
+    let st=DEFAULT();
     function save(){ try{ localStorage.setItem(makeKey(st.addr), JSON.stringify({...st,accrued:st.accrued.toString()})); }catch{} }
     function loadFor(addr){
       try{
-        const raw = localStorage.getItem(makeKey(addr));
+        const raw=localStorage.getItem(makeKey(addr));
         if(!raw){ st=DEFAULT(); st.addr=addr||null; return; }
-        const p = JSON.parse(raw);
-        st = {...DEFAULT(), ...p};
-        if(typeof st.accrued==='string') st.accrued = BigInt(st.accrued);
-        st.addr = addr || null;
+        const p=JSON.parse(raw); st={...DEFAULT(),...p};
+        if(typeof st.accrued==='string') st.accrued=BigInt(st.accrued);
+        st.addr=addr||null;
       }catch{ st=DEFAULT(); st.addr=addr||null; }
     }
 
-    // ------- утилиты/хэш/target
+    // --- утилы/хэш/таргет
     const $=id=>document.getElementById(id);
     function randHex(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
     function fmt(x,dp=4){const d=10n**18n;const i=x/d;const f=(x%d).toString().padStart(18,'0').slice(0,dp);return `${i}.${f}`}
@@ -218,9 +221,9 @@
     function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
     const curTarget=()=>compactToTarget(st.bits);
 
-    // ------- рендер
-    let hrBase = Number(BASE_RATE/10n**14n)/100, hrJitter=0;
-    function showHashrate(){ hrJitter+=(Math.random()-0.5)*0.1; hrJitter=Math.max(-0.5,Math.min(0.5,hrJitter)); const hr=Math.max(0, hrBase*(1+hrJitter/10)); const el=$('sm-hr'); if(el) el.textContent=`${hr.toFixed(2)} BGB/s`; }
+    // --- рендер
+    let hrBase=Number(BASE_RATE/10n**14n)/100, hrJitter=0;
+    function showHashrate(){ hrJitter+=(Math.random()-0.5)*0.1; hrJitter=Math.max(-0.5,Math.min(0.5,hrJitter)); const hr=Math.max(0,hrBase*(1+hrJitter/10)); $('sm-hr').textContent=`${hr.toFixed(2)} BGB/s`; }
     function render(){
       $('sm-addr').textContent = st.addr?`${st.addr.slice(0,6)}…${st.addr.slice(-4)}`:'—';
       $('sm-bits').textContent = '0x'+st.bits.toString(16);
@@ -232,11 +235,20 @@
       $('sm-bar').style.width = Math.min(100, Number(st.accrued*100n/UNIT)) + '%';
       $('mp-count').textContent = mp.count; $('mp-fee').textContent=mp.fee.toFixed(2); $('mp-size').textContent=mp.size;
       $('sm-shares').textContent = st.shares||0;
-      const list=$('sm-chain'); if(list && !list.hasAttribute('hidden')) list.innerHTML = st.chain.slice(-MAX_VIEW).map(b=>`<div>#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`).reverse().join('');
+
+      const list=$('sm-chain');
+      if(list && !list.hasAttribute('hidden')){
+        list.innerHTML = [
+          `<div class="empty">Mined blocks (accepted):</div>`,
+          ...st.chain.slice(-MAX_VIEW).map(b =>
+            `<div class="ok">#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`
+          ).reverse()
+        ].join('');
+      }
       showHashrate();
     }
 
-    // ------- майнинг
+    // --- майнинг
     let mp={count:0,fee:0.0,size:0};
     function mineBatch(){
       const prev = st.height ? st.chain.at(-1).hash : GENESIS_PREV;
@@ -275,12 +287,11 @@
       mineBatch(); save(); render();
     }
 
-    // ------- кнопки
+    // --- кнопки
     window.smConnect = async function(){
-      const injected = (window.__bgb_provider || window.ethereum);
+      const injected=(window.__bgb_provider||window.ethereum);
       if(!injected){ alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.'); return; }
       try{
-        // гарантированно запросим аккаунт, чтобы кнопка «работала»
         if(injected.request){ await injected.request({ method:'eth_requestAccounts' }); }
         const p=new ethers.BrowserProvider(injected);
         const s=await p.getSigner(); const addr=await s.getAddress();
@@ -291,7 +302,7 @@
     window.smStop=function(){ st.running=false; $('sm-msg').textContent='Paused'; save(); render(); };
     window.smToggleChain=function(){ const el=$('sm-chain'); if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden',''); render(); };
 
-    // ------- Claim
+    // --- Claim
     window.smRequest = async function(){
       if(st.accrued<UNIT){ alert('Нужно ≥30 BGB'); return; }
       const injected=(window.__bgb_provider||window.ethereum); if(!injected){ alert('Подключите кошелёк'); return; }
@@ -312,7 +323,7 @@
     window.sendClaim=function(){ const pre=$('claim-json'); if(!pre) return; try{ const obj=JSON.parse(pre.textContent); const share=`https://t.me/share/url?url=&text=${encodeURIComponent(obj.message+'\n\nSignature: '+obj.signature)}`; window.open(share,'_blank','noopener,noreferrer'); }catch{} };
     window.closeClaim=function(){ const m=$('claim-modal'); if(m) m.style.display='none'; };
 
-    // ------- старт: гость всегда с нуля
+    // --- старт: гость всегда с нуля
     loadFor(null);
     render();
     setInterval(tick,500);
