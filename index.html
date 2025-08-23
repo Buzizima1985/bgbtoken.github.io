@@ -1,42 +1,86 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>BGB Token • Mining</title>
 <link rel="icon" href="logo.png"/>
+
 <style>
   :root{
     --accent:#e60000; --accent2:#cc0000; --ok:#00ff88; --txt:#fff;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body,html{height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;background:#0b0f14}
-  .overlay{min-height:100%;background:radial-gradient(1000px 500px at 50% -10%,#21374733 5%,#0b0f14 60%);display:flex;flex-direction:column;align-items:center;padding:24px 16px;gap:14px}
-  h1{font-weight:800;font-size:44px;line-height:1;background:linear-gradient(90deg,#ff7a00,#ff3b3b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:6px}
+  body,html{
+    height:100%;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+    background: #0b0f14 url('./bg.jpg') no-repeat center/cover;
+  }
+  .overlay{
+    min-height:100%;
+    background:radial-gradient(1000px 500px at 50% -10%,#21374733 5%,#0b0f14 60%);
+    display:flex;flex-direction:column;align-items:center;padding:24px 16px;gap:14px
+  }
+  h1{
+    font-weight:800;font-size:44px;line-height:1;
+    background:linear-gradient(90deg,#ff7a00,#ff3b3b);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:6px
+  }
   .subtitle{color:#eaeaea;font-size:16px;margin-bottom:6px}
   .buttons{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
-  .btn{padding:12px 20px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 0 10px #e60000;cursor:pointer;font-size:16px;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+  .btn{
+    padding:12px 20px;border:none;border-radius:12px;background:var(--accent);color:#fff;
+    font-weight:700;box-shadow:0 0 10px #e60000;cursor:pointer;font-size:16px;text-decoration:none;
+    display:inline-flex;align-items:center;gap:8px
+  }
   .btn:hover{background:var(--accent2);transform:translateY(-1px)}
+
   /* Miner Card */
-  .miner-card{margin-top:18px;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);padding:20px;border-radius:20px;color:#fff;display:inline-block;max-width:900px;width:100%}
+  .miner-card{
+    margin-top:18px;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);
+    padding:20px;border-radius:20px;color:#fff;display:inline-block;max-width:900px;width:100%
+  }
   .miner-card .hdr{font-weight:800;font-size:20px;margin-bottom:8px}
   .miner-card .row{font-size:14px;opacity:.92;margin:4px 0}
   .miner-card .acc{font-size:22px;margin:10px 0}
-  .miner-card .bar{height:10px;background:#ffffff26;border-radius:999px;overflow:hidden;margin:6px 0}
-  #sm-bar{height:100%;width:0%;background:var(--ok);transition:width .3s}
+
+  /* Прогрес-бар з градієнтом */
+  .miner-card .bar{height:12px;background:#1b1f24;border-radius:999px;overflow:hidden;margin:8px 0;box-shadow:inset 0 0 8px #000}
+  #sm-bar{
+    height:100%;width:0%;
+    background: linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);
+    filter: drop-shadow(0 0 6px rgba(34,197,94,.6));
+    transition: width .35s ease, filter .35s ease;
+  }
+
+  .mempool{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}
+  .tag{background:#131820;color:#cbd5e1;border:1px solid #2a3240;padding:4px 8px;border-radius:999px;font-size:12px}
+
+  .diff-badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#20262d;font-weight:700;font-size:12px;margin-left:6px}
+  .diff-up{color:#22c55e;border:1px solid #22c55e33}
+  .diff-down{color:#ef4444;border:1px solid #ef444433}
+
   .miner-card .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
   .miner-card .btn-red{padding:12px 22px;background:var(--accent);border-radius:10px;color:#fff;font-weight:700;font-size:16px;box-shadow:0 0 10px #e60000;border:none;cursor:pointer}
   .miner-card .btn-red:hover{background:var(--accent2);transform:scale(1.05)}
-  .list{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;max-height:160px;overflow:auto;background:rgba(0,0,0,.3);padding:8px;border-radius:10px;margin-top:6px;text-align:left}
+
+  .list{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;max-height:160px;overflow:auto;background:#0b0f14;border:1px solid #2a3240;padding:8px;border-radius:10px;margin-top:6px;text-align:left;color:#e5e7eb}
+
+  /* Модалка Claim */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:50;padding:16px}
+  .modal .card{max-width:680px;width:100%;background:#0f1318;border:1px solid #293241;border-radius:14px;color:#e5e7eb;padding:16px;text-align:left}
+  .modal pre{max-height:360px;overflow:auto;background:#0b0f14;border-radius:10px;padding:12px;font-size:12px;color:#d1d5db}
+  .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+
   footer{margin-top:20px;color:#a9b0b6;font-size:13px}
 </style>
 </head>
 <body>
   <div class="overlay">
     <h1>BGB Token</h1>
-    <div class="subtitle">🎁 Получи <b>300 BGB</b> прямо сейчас на свой кошелёк</div>
+    <div class="subtitle">🎁 Отримай <b>300 BGB</b> просто зараз на свій гаманець</div>
 
-    <!-- Верхние кнопки -->
+    <!-- Верхні кнопки -->
     <div class="buttons">
       <a class="btn" href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">📄 BSC Scan</a>
       <a class="btn" href="https://t.me/Makkan1985" target="_blank" rel="noopener">💬 Telegram</a>
@@ -51,9 +95,14 @@
     <div id="miner" class="miner-card" aria-live="polite">
       <div class="hdr">BGB Mining</div>
       <div class="row">Wallet: <span id="sm-addr">—</span></div>
-      <div class="row">Hashrate: <span id="sm-hr">—</span> • Difficulty bits: <span id="sm-bits">—</span></div>
+      <div class="row">Hashrate: <span id="sm-hr">—</span> • Difficulty bits: <span id="sm-bits">—</span><span id="diff-ind" class="diff-badge">diff: —</span></div>
       <div class="row">Height: <span id="sm-height">0</span> • Last block: <span id="sm-last">—</span></div>
       <div class="row">Target: <span id="sm-target">—</span> • Next retarget in: <span id="sm-retarget">—</span></div>
+      <div class="mempool">
+        <span class="tag">Mempool: <b id="mp-count">0</b> tx</span>
+        <span class="tag">Avg fee: <b id="mp-fee">0.00</b> gwei</span>
+        <span class="tag">Size: <b id="mp-size">0</b> kB</span>
+      </div>
       <div class="acc">Accrued: <span id="sm-acc">0.0000</span> BGB</div>
       <div class="bar"><div id="sm-bar"></div></div>
       <div class="row" id="sm-msg">Status: ready</div>
@@ -70,23 +119,36 @@
 
     <!-- Контракт -->
     <div class="miner-card" style="max-width:900px">
-      <div class="row">Контракт токена: <code id="token-address">0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code></div>
+      <div class="row">Контракт токена: <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code></div>
     </div>
 
     <footer>© 2025 BGB Token</footer>
+  </div>
+
+  <!-- Модалка попереднього перегляду Claim -->
+  <div id="claim-modal" class="modal" role="dialog" aria-modal="true">
+    <div class="card">
+      <h3 style="margin-bottom:8px">Claim Payload</h3>
+      <pre id="claim-json">{}</pre>
+      <div class="row">
+        <button class="btn-red" onclick="copyClaim()">Copy</button>
+        <button class="btn-red" onclick="sendClaim()">Open Telegram</button>
+        <button class="btn-red" onclick="closeClaim()">Close</button>
+      </div>
+    </div>
   </div>
 
   <!-- ethers -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
 
   <script>
-  // ===== верхние кнопки кошельков =====
+  // ===== Верхні кнопки кошельків =====
   async function handleMetaMask(e){
     e?.preventDefault?.();
     const token={address:'0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',symbol:'BGB',decimals:18,image:'logo.png'};
     if(window.ethereum?.request){
       try{ await window.ethereum.request({method:'wallet_watchAsset',params:{type:'ERC20',options:token}}); }
-      catch{ alert('Не удалось добавить токен в MetaMask'); }
+      catch{ alert('Не вдалося додати токен у MetaMask'); }
     }else{ open('https://metamask.io/download/','_blank'); }
   }
   function handleTrust(e){
@@ -94,20 +156,23 @@
     const ua=navigator.userAgent||''; const dapp=encodeURIComponent(location.href);
     const openUrl=`https://link.trustwallet.com/open_url?source=dapp&url=${dapp}`;
     if(/Android/i.test(ua)){ location.href=openUrl; setTimeout(()=>open('https://play.google.com/store/apps/details?id=com.wallet.crypto.trustapp','_blank'),900); return; }
-    if(/iPhone|iPad|iPod/i.test(ua)){ open('https://apps.apple.com/app/trust-crypto-bitcoin-wallet/id1288339409','_blank'); alert('Откройте сайт через Trust Wallet (Browser).'); return; }
+    if(/iPhone|iPad|iPod/i.test(ua)){ open('https://apps.apple.com/app/trust-crypto-bitcoin-wallet/id1288339409','_blank'); alert('Відкрий сайт через Trust Wallet (Browser).'); return; }
     open('https://trustwallet.com/download','_blank');
   }
 
-  // ===== Майнер (browser only) =====
+  // ===== Майнер (browser only): keccak, compact bits, retarget, mempool, «живий» хешрейт =====
   (function(){
-    const KEY='bgb_miner_v1';
-    const BASE_RATE=5n*10n**16n; // 0.05 BGB/s
+    const KEY='bgb_miner_ui_v2';
+    const BASE_RATE=5n*10n**16n; // 0.05 BGB/s (візуальна швидкість)
     const UNIT=30n*10n**18n;
-    const BLOCK_TARGET_TIME=10;  // s
-    const RETARGET_INTERVAL=20;  // blocks
+    const BLOCK_TARGET_TIME=10;  // сек/блок
+    const RETARGET_INTERVAL=20;  // блоків до ретаргету
     const MAX_VIEW=200;
 
     let st={addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],session:rndHex(16)};
+    let mp={count:0,fee:0.0,size:0};               // мемпул
+    let hrBase = Number(BASE_RATE/10n**14n)/100;   // базове значення для «джитеру»
+    let hrJitter = 0;
 
     // utils
     const $=id=>document.getElementById(id);
@@ -122,6 +187,20 @@
     const curTarget=()=>compactToTarget(st.bits);
     const k256=s=>ethers.keccak256(ethers.toUtf8Bytes(s));
 
+    // живий хешрейт і колір прогресу
+    function showHashrate(){
+      hrJitter += (Math.random()-0.5)*0.1;
+      hrJitter = Math.max(-0.5, Math.min(0.5, hrJitter));
+      const hr = Math.max(0, hrBase * (1 + hrJitter/10));
+      $('sm-hr').textContent = `${hr.toFixed(2)} BGB/s`;
+    }
+    function setBarColor(pct){
+      const bar=$('sm-bar');
+      if (pct < 50) bar.style.filter='drop-shadow(0 0 6px rgba(34,197,94,.6))';
+      else if (pct < 85) bar.style.filter='drop-shadow(0 0 6px rgba(245,158,11,.6))';
+      else bar.style.filter='drop-shadow(0 0 6px rgba(239,68,68,.6))';
+    }
+
     // render
     function render(){
       $('sm-addr').textContent=st.addr?`${st.addr.slice(0,6)}…${st.addr.slice(-4)}`:'—';
@@ -131,8 +210,16 @@
       $('sm-acc').textContent=fmt(st.accrued,4);
       $('sm-last').textContent=st.height?st.chain.at(-1).hash.slice(0,10)+'…':'—';
       $('sm-retarget').textContent=RETARGET_INTERVAL-(st.height%RETARGET_INTERVAL||RETARGET_INTERVAL);
-      const pct=Math.min(100,Number(st.accrued*100n/UNIT)); $('sm-bar').style.width=pct+'%';
-      const hr=Number(BASE_RATE/10n**14n)/100; $('sm-hr').textContent=`${hr.toFixed(2)} BGB/s`;
+
+      const pct=Math.min(100,Number(st.accrued*100n/UNIT));
+      $('sm-bar').style.width=pct+'%';
+      setBarColor(pct);
+      showHashrate();
+
+      $('mp-count').textContent = mp.count;
+      $('mp-fee').textContent   = mp.fee.toFixed(2);
+      $('mp-size').textContent  = mp.size;
+
       const list=$('sm-chain'); if(!list.hasAttribute('hidden')){
         list.innerHTML=st.chain.slice(-MAX_VIEW).map(b=>`<div>#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`).reverse().join('');
       }
@@ -159,31 +246,54 @@
     function retarget(){
       if(st.height<RETARGET_INTERVAL) return;
       const from=st.chain.length-RETARGET_INTERVAL, first=st.chain[from], last=st.chain.at(-1);
-      const actual=Math.max(1,last.time-first.time); const span=BLOCK_TARGET_TIME*RETARGET_INTERVAL;
-      let newT=curTarget()*BigInt(actual)/BigInt(span);
-      const cur=curTarget(), minT=cur/4n, maxT=cur*4n; if(newT<minT)newT=minT; if(newT>maxT)newT=maxT;
+      const actual=Math.max(1,last.time-first.time), span=BLOCK_TARGET_TIME*RETARGET_INTERVAL;
+
+      const oldTarget = curTarget();
+      let newT = oldTarget * BigInt(actual) / BigInt(span);
+      const minT = oldTarget/4n, maxT = oldTarget*4n;
+      if(newT<minT)newT=minT; if(newT>maxT)newT=maxT;
+
       st.bits=targetToCompact(newT);
+
+      // бейдж індикації
+      const ind=$('diff-ind');
+      ind.textContent = `diff: 0x${st.bits.toString(16)}`;
+      if (newT < oldTarget) ind.className='diff-badge diff-up';        // складність ↑ (target ↓)
+      else if (newT > oldTarget) ind.className='diff-badge diff-down'; // складність ↓
+      else ind.className='diff-badge';
     }
+
     function tick(){
       if(!st.running) return;
       const now=Date.now(), dt=now-st.lastMs; if(dt<=0) return;
-      st.accrued+=BASE_RATE*BigInt(Math.floor(dt/1000)); st.lastMs=now;
+
+      // візуальне нарахування
+      st.accrued+=BASE_RATE*BigInt(Math.floor(dt/1000));
+      st.lastMs=now;
+
+      // простий мемпул
+      mp.count=Math.max(0,Math.round(mp.count+(Math.random()*6-3)));
+      mp.fee=Math.max(0.1,mp.fee+(Math.random()*0.2-0.1));
+      mp.size=Math.max(0,Math.round(mp.size+(Math.random()*8-4)));
+
       mineBatch(); save(); render();
     }
 
     // buttons
-    window.smConnect=async function(){ if(!window.ethereum){alert('Установите MetaMask');return;}
+    window.smConnect=async function(){ if(!window.ethereum){alert('Встановіть MetaMask');return;}
       try{const p=new ethers.BrowserProvider(window.ethereum);const s=await p.getSigner();st.addr=await s.getAddress();save();render();}
-      catch{alert('Не удалось подключить кошелёк');}
+      catch{alert('Не вдалося підключити гаманець');}
     }
     window.smStart=function(){st.running=true;st.lastMs=Date.now();$('sm-msg').textContent='Mining…';save();render();}
     window.smStop=function(){st.running=false;$('sm-msg').textContent='Paused';save();render();}
-    window.smReset=function(){if(confirm('Сбросить локальные данные майнера?')){st.accrued=0n;st.chain=[];st.height=0;st.lastMs=Date.now();st.bits=0x1f00ffff;$('sm-msg').textContent='Reset done';save();render();}}
-    window.smToggleChain=function(){const el=$('sm-chain'); if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden',''); render();}
+    window.smToggleChain=function(){const el=$('sm-chain');if(el.hasAttribute('hidden'))el.removeAttribute('hidden');else el.setAttribute('hidden','');render();}
+    window.smReset=function(){if(confirm('Скинути локальні дані майнера?')){st.accrued=0n;st.chain=[];st.height=0;st.lastMs=Date.now();st.bits=0x1f00ffff;$('sm-msg').textContent='Reset done';save();render();}}
 
+    // Claim (з попереднім переглядом)
+    let pendingClaim=null;
     window.smRequest=async function(){
-      if(st.accrued<UNIT){alert('Нужно ≥30 BGB');return;}
-      if(!window.ethereum){alert('Подключите MetaMask');return;}
+      if(st.accrued<UNIT){alert('Потрібно ≥30 BGB');return;}
+      if(!window.ethereum){alert('Підключіть MetaMask');return;}
       try{
         const p=new ethers.BrowserProvider(window.ethereum), s=await p.getSigner(), addr=await s.getAddress();
         const payoutWei=st.accrued-(st.accrued%UNIT), amountBGB=fmt(payoutWei,4);
@@ -191,11 +301,15 @@
         const payload={address:addr,session:st.session,amountBGB,amountWei:payoutWei.toString(),height:st.height,lastBlock:last?last.hash:null,bits:st.bits,ts:new Date().toISOString()};
         const msg=`BGB Claim Request\nAddress: ${addr}\nSession: ${st.session}\nAmount: ${amountBGB} BGB\nHeight: ${st.height}\nBits: 0x${st.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nTime: ${payload.ts}`;
         const sig=await s.signMessage(msg);
-        try{await navigator.clipboard.writeText(JSON.stringify({...payload,signature:sig},null,2));}catch{}
-        open(`https://t.me/share/url?url=&text=${encodeURIComponent(msg+'\n\nSignature: '+sig)}`,'_blank','noopener,noreferrer');
-        $('sm-msg').innerHTML='Заявка сформирована. Откройте <a href="https://t.me/Makkan1985" target="_blank" rel="noopener">Telegram</a> и отправьте payload.';
-      }catch(e){alert('Ошибка запроса');console.error(e);}
-    }
+        pendingClaim={...payload,signature:sig,message:msg};
+        $('claim-json').textContent=JSON.stringify(pendingClaim,null,2);
+        $('claim-modal').style.display='flex';
+      }catch(e){alert('Помилка запиту');console.error(e);}
+    };
+    window.copyClaim=async function(){ if(!pendingClaim) return; try{ await navigator.clipboard.writeText(JSON.stringify(pendingClaim,null,2)); }catch{} };
+    window.sendClaim=function(){ if(!pendingClaim) return; const share=`https://t.me/share/url?url=&text=${encodeURIComponent(pendingClaim.message+'\n\nSignature: '+pendingClaim.signature)}`; open(share,'_blank','noopener,noreferrer'); };
+    window.closeClaim=function(){ $('claim-modal').style.display='none'; };
+    window.addEventListener('keydown',e=>{ if(e.key==='Escape') window.closeClaim(); });
 
     // init
     load(); render(); setInterval(tick,500);
