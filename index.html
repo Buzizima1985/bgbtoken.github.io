@@ -86,6 +86,7 @@ footer{margin:16px 0;color:#9aa0a6}
 
       <div class="tags">
         <span class="tag">Active miners (tabs): <b id="tabs">1</b></span>
+        <span class="tag ok">Global miners: <b id="globalMiners">?</b></span>
         <span class="tag">Mempool: <b id="mpc">0</b> tx</span>
         <span class="tag">Avg fee: <b id="mpf">0.00</b> gwei</span>
         <span class="tag">Size: <b id="mps">0</b> kB</span>
@@ -151,7 +152,7 @@ footer{margin:16px 0;color:#9aa0a6}
   const TRIES=128, LOG_MAX=400, VIEW_MAX=220;
   const BLOCK_TARGET_TIME=10, RETARGET_INTERVAL=20;
 
-  const KEY='bgb_miner_ui_v6';
+  const KEY='bgb_miner_ui_v7';
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
 
@@ -159,23 +160,40 @@ footer{margin:16px 0;color:#9aa0a6}
   const seen=new Set(); const queue=[];
   function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>2000){ const old=queue.shift(); seen.delete(old); } return true; }
 
-  function save(){ try{ localStorage.setItem(KEY+':'+(S.addr||'guest'), JSON.stringify({...S,accrued:S.accrued.toString(), _seenQueue:queue.slice(-2000)})); }catch{} }
+  function save(){
+    try{
+      localStorage.setItem(
+        KEY+':'+(S.addr||'guest'),
+        JSON.stringify({...S,accrued:S.accrued.toString(), _seenQueue:queue.slice(-2000)})
+      );
+    }catch{}
+  }
   function load(addr){
-    try{ const raw=localStorage.getItem(KEY+':'+(addr||'guest'));
+    try{
+      const raw=localStorage.getItem(KEY+':'+(addr||'guest'));
       if(!raw){ S=DEF(); S.addr=addr||null; return; }
-      const p=JSON.parse(raw); S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null;
-      // восстановить окно уникальности
+      const p=JSON.parse(raw);
+      S={...DEF(),...p};
+      if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued);
+      S.addr=addr||null;
+      // восстановление окна уникальности
       queue.length=0; seen.clear();
       (p._seenQueue||[]).slice(-2000).forEach(h=>{ if(typeof h==='string'){ queue.push(h); seen.add(h); }});
     }catch{ S=DEF(); S.addr=addr||null; }
   }
 
-  // активные вкладки
+  // активные вкладки (локально)
   const TAB_PREFIX='BGB_TAB_'; const TAB_ID=randHex(6);
   function heartbeat(){ try{ localStorage.setItem(TAB_PREFIX+TAB_ID, String(Date.now())); }catch{} }
   function countTabs(){ try{
       const now=Date.now(), ttl=9000; let n=0;
-      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.startsWith(TAB_PREFIX)){ const t=Number(localStorage.getItem(k)); if(now - t < ttl) n++; } }
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k && k.startsWith(TAB_PREFIX)){
+          const t=Number(localStorage.getItem(k));
+          if(now - t < ttl) n++;
+        }
+      }
       $('tabs').textContent=n||1;
   }catch{ $('tabs').textContent='1'; } }
   setInterval(()=>{ heartbeat(); countTabs(); }, 3000); heartbeat(); countTabs();
@@ -284,7 +302,6 @@ footer{margin:16px 0;color:#9aa0a6}
     try{
       const injected=(window.__bgb_provider||window.ethereum||window.trustwallet);
       if(!injected){
-        // Плавная подсказка для мобильных
         if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
           if (confirm('Открыть сайт в MetaMask?')) { openInMetaMask(); return; }
           if (confirm('Открыть в Trust Wallet?')) { openInTrust(); return; }
@@ -321,9 +338,40 @@ footer{margin:16px 0;color:#9aa0a6}
   function openTG(){ const txt=encodeURIComponent('Заявка на выплату BGB:\n\n'+$('claimText').textContent); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
+  /* ======= GLOBAL MINERS (через Cloudflare Worker + KV) ======= */
+  // ВСТАВЬ СВОЙ URL ВОРКЕРА:
+  const GLOBAL_URL = "https://YOUR-WORKER-URL"; // <-- замените на свой
+
+  async function pingMiner(){
+    if(!GLOBAL_URL || GLOBAL_URL.includes("YOUR-WORKER-URL")) return;   // чтобы не спамить, если не настроено
+    if(!S.addr) return;
+    try{
+      await fetch(GLOBAL_URL + "/miner-ping?addr=" + encodeURIComponent(S.addr), { mode:'cors' });
+    }catch{}
+  }
+  async function fetchGlobal(){
+    const el = $('globalMiners');
+    if(!GLOBAL_URL || GLOBAL_URL.includes("YOUR-WORKER-URL")) { el.textContent = "?"; return; }
+    try{
+      const r = await fetch(GLOBAL_URL + "/miners-online", { mode:'cors' });
+      const j = await r.json();
+      el.textContent = (j && typeof j.count==='number') ? j.count : "?";
+    }catch{
+      el.textContent = "?";
+    }
+  }
+  // пингуем и обновляем только когда реально идёт майнинг
+  setInterval(()=>{
+    if (S.running) {
+      pingMiner();
+      fetchGlobal();
+    }
+  }, 10000);
+  // раз в 20с обновим число, даже если пауза (для видимости)
+  setInterval(fetchGlobal, 20000);
+
   // boot
   load(null);
-  // стартовый лог
   pushLine('Mining log (white = try, green = accepted)',false);
   render(); updMP();
   setInterval(tick,500);
