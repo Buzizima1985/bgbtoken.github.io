@@ -32,9 +32,9 @@
   .miner-card .btn-red{padding:10px 18px;font-size:15px;border-radius:10px;background:var(--accent);color:#fff;border:none;box-shadow:0 0 10px #e60000;cursor:pointer}
   .miner-card .btn-red:hover{background:var(--accent2);transform:scale(1.05)}
 
-  .list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:160px;overflow:auto;background:#0b0f14;border:1px solid #2a3240;padding:8px;border-radius:10px;margin-top:6px;text-align:left;color:#e5e7eb}
-  .list .ok{color:#00ff88}     /* принятые блоки (с наградой) */
-  .list .empty{color:#e5e7eb}  /* заголовки/прочее */
+  .list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:200px;overflow:auto;background:#0b0f14;border:1px solid #2a3240;padding:8px;border-radius:10px;margin-top:6px;text-align:left;color:#e5e7eb}
+  .list .ok{color:#00ff88}     /* найденные блоки (с наградой) */
+  .list .empty{color:#e5e7eb}  /* пустые попытки / заголовки */
 
   footer{margin-top:20px;color:#a9b0b6;font-size:13px}
 
@@ -66,7 +66,6 @@
       <div class="row">Height: <span id="sm-height">0</span> • Last block: <span id="sm-last">—</span></div>
       <div class="row">Target: <span id="sm-target">—</span> • Next retarget in: <span id="sm-retarget">—</span></div>
 
-      <!-- бейджи майнеров -->
       <div class="row" id="miners-row">
         <span class="tag">Active miners (global): <b id="sm-online-global">—</b></span>
         <span class="tag success">Local tabs: <b id="sm-online-local">1</b></span>
@@ -82,7 +81,8 @@
       <div class="acc">Accrued: <span id="sm-acc">0.0000</span> BGB</div>
       <div class="bar"><div id="sm-bar"></div></div>
       <div class="row" id="sm-msg">Status: ready</div>
-      <div id="sm-chain" class="list" hidden></div>
+      <!-- список виден по умолчанию -->
+      <div id="sm-chain" class="list"></div>
 
       <div class="btns">
         <button type="button" class="btn-red" onclick="smConnect()">Connect</button>
@@ -122,9 +122,8 @@
 
   <script>
   // ===== FIREBASE CONFIG (опционально)
-  // Включи, если хочешь реальный глобальный online: FIREBASE.enabled=true и вставь конфиг.
   const FIREBASE = {
-    enabled: false, // <-- поменяй на true и заполни config
+    enabled: false, // <- включи true и вставь конфиг, чтобы видеть глобальных майнеров
     config: {
       apiKey:     "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -138,7 +137,7 @@
   </script>
 
   <script>
-  // ===== верхние кнопки
+  // ===== Верхние кошельковые кнопки
   async function handleMetaMask(e){
     e && e.preventDefault && e.preventDefault();
     const token={address:'0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',symbol:'BGB',decimals:18,image:'logo.png'};
@@ -156,11 +155,17 @@
     window.open('https://trustwallet.com/download','_blank');
   }
 
-  // ===== Майнер (персональное хранение per-wallet, presence, пул-UI)
+  // ===== Майнер (с логом пустых/принятых, уникальные хэши, per-wallet сохранение)
   (function(){
     // --- настройки
     const GENESIS_PREV='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d';
-    const UNIT=30n*10n**18n, BASE_RATE=5n*10n**16n, BLOCK_TARGET_TIME=10, RETARGET_INTERVAL=20, MAX_VIEW=200;
+    const UNIT=30n*10n**18n;             // 30 BGB
+    const BASE_RATE=5n*10n**16n;         // «начисление/сек» для индикатора
+    const BLOCK_TARGET_TIME=10;          // сек на блок (целевой)
+    const RETARGET_INTERVAL=20;          // каждые N блоков — пересчёт
+    const TRIES=128;                     // попыток в один тик (замедлил)
+    const MAX_VIEW=200;                  // сколько последних показывать
+    const LOG_MAX=400;                   // длина кольцевого буфера лога
 
     // --- presence локальный (tabs)
     const ONLINE_KEY='bgb_online_tabs_v1', CH_NAME='bgb_online_broadcast_v1';
@@ -199,8 +204,9 @@
     // --- состояние per-wallet (v3)
     const KEY_BASE='bgb_miner_ui_v3';
     function makeKey(addr){ return KEY_BASE + ':' + (addr?addr.toLowerCase():'guest'); }
-    const DEFAULT=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,session:randHex(16)});
+    const DEFAULT=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
     let st=DEFAULT();
+
     function save(){ try{ localStorage.setItem(makeKey(st.addr), JSON.stringify({...st,accrued:st.accrued.toString()})); }catch{} }
     function loadFor(addr){
       try{
@@ -221,6 +227,12 @@
     function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
     const curTarget=()=>compactToTarget(st.bits);
 
+    // --- лог попыток (без сохранения в storage)
+    let logBuf=[]; // [{html, ok}]
+    function pushLog(html, ok){
+      logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift();
+    }
+
     // --- рендер
     let hrBase=Number(BASE_RATE/10n**14n)/100, hrJitter=0;
     function showHashrate(){ hrJitter+=(Math.random()-0.5)*0.1; hrJitter=Math.max(-0.5,Math.min(0.5,hrJitter)); const hr=Math.max(0,hrBase*(1+hrJitter/10)); $('sm-hr').textContent=`${hr.toFixed(2)} BGB/s`; }
@@ -236,15 +248,13 @@
       $('mp-count').textContent = mp.count; $('mp-fee').textContent=mp.fee.toFixed(2); $('mp-size').textContent=mp.size;
       $('sm-shares').textContent = st.shares||0;
 
+      // рендерим лог: пустые (white) + принятые (green)
       const list=$('sm-chain');
-      if(list && !list.hasAttribute('hidden')){
-        list.innerHTML = [
-          `<div class="empty">Mined blocks (accepted):</div>`,
-          ...st.chain.slice(-MAX_VIEW).map(b =>
-            `<div class="ok">#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`
-          ).reverse()
-        ].join('');
-      }
+      list.innerHTML = [
+        `<div class="empty">Mining log (white = try, green = accepted)</div>`,
+        ...logBuf.slice(-MAX_VIEW).map(e=>`<div class="${e.ok?'ok':'empty'}">${e.html}</div>`).reverse()
+      ].join('');
+
       showHashrate();
     }
 
@@ -252,22 +262,34 @@
     let mp={count:0,fee:0.0,size:0};
     function mineBatch(){
       const prev = st.height ? st.chain.at(-1).hash : GENESIS_PREV;
-      const target = curTarget(); const tries=512; const nowSec=Math.floor(Date.now()/1000);
-      for(let i=0;i<tries;i++){
+      const target = curTarget(); const nowSec=Math.floor(Date.now()/1000);
+
+      for(let i=0;i<TRIES;i++){
         const nonce=randHex(8);
-        const header=JSON.stringify({ver:1,prev,time:nowSec,bits:st.bits,nonce,merkle:randHex(16)});
+        const salt=randHex(4);       // уникальная приправка
+        const ctr=++st.ctr;          // глобальный счётчик попыток
+        const headerObj={ver:1,prev,time:nowSec,bits:st.bits,nonce,salt,ctr};
+        const header=JSON.stringify(headerObj);
         const h=k256(header);
+        const line=`${h} bits=0x${st.bits.toString(16)} nonce=${nonce} salt=${salt} ctr=${ctr} ← ${prev.slice(0,18)}…`;
+
         if(BigInt(h)<=target){
+          // accepted
           const blk={idx:st.height+1,time:nowSec,bits:st.bits,nonce,prev,hash:h};
           st.chain.push(blk); st.height=blk.idx; st.shares=(st.shares||0)+1;
           if(st.chain.length>MAX_VIEW) st.chain=st.chain.slice(-MAX_VIEW);
+          pushLog(line, true);
           $('sm-msg').textContent=`Mined block #${blk.idx}`;
           if(st.height % RETARGET_INTERVAL === 0) retarget();
           return true;
+        }else{
+          // пустая попытка
+          pushLog(line, false);
         }
       }
       return false;
     }
+
     function retarget(){
       if(st.height<RETARGET_INTERVAL) return;
       const from=st.chain.length-RETARGET_INTERVAL, first=st.chain[from], last=st.chain.at(-1);
@@ -276,14 +298,17 @@
       const minT=oldT/4n, maxT=oldT*4n; if(newT<minT)newT=minT; if(newT>maxT)newT=maxT;
       st.bits = targetToCompact(newT);
     }
+
     function tick(){
       if(!st.running) return;
       const now=Date.now(), dt=now-st.lastMs; if(dt<=0) return;
       st.accrued += BASE_RATE * BigInt(Math.floor(dt/1000));
       st.lastMs = now;
+
       mp.count=Math.max(0,Math.round(mp.count+(Math.random()*6-3)));
       mp.fee=Math.max(0.1,mp.fee+(Math.random()*0.2-0.1));
       mp.size=Math.max(0,Math.round(mp.size+(Math.random()*8-4)));
+
       mineBatch(); save(); render();
     }
 
@@ -325,6 +350,8 @@
 
     // --- старт: гость всегда с нуля
     loadFor(null);
+    // заголовок лога
+    pushLog('Mined blocks will appear in green; tries in white.', false);
     render();
     setInterval(tick,500);
   })();
