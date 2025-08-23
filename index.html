@@ -1,168 +1,138 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BGB Token • Mining</title>
+  <title>BGB Token Mining</title>
   <style>
-    body { margin:0; font-family:Arial, sans-serif; background:#0a0a0a; color:#fff; }
-    header { text-align:center; padding:20px 10px; }
-    header h1 { font-size:42px; color:#ff6600; margin:0; }
-    header p { font-size:18px; margin:5px 0 15px; }
-
-    .buttons { display:flex; flex-wrap:wrap; justify-content:center; margin-bottom:20px; }
-    .buttons a, .buttons button {
-      margin:6px; padding:10px 20px; font-size:16px; font-weight:bold;
-      border:none; border-radius:8px; background:#d00; color:#fff; cursor:pointer;
-      text-decoration:none; box-shadow:0 0 8px #d00;
-    }
-    .buttons a:hover, .buttons button:hover { background:#f33; }
-
-    .card {
-      background:#111; border-radius:12px; max-width:800px; margin:0 auto; padding:20px;
-      box-shadow:0 0 15px rgba(255,0,0,0.3);
-    }
-    h2 { margin-top:0; }
-
-    .stats { font-size:14px; margin-bottom:10px; }
-    .stats span { display:inline-block; margin-right:15px; }
-
-    .progress {
-      height:10px; background:#333; border-radius:6px; margin:8px 0 14px; overflow:hidden;
-    }
-    .progress div { height:100%; width:0%; background:#00ff66; transition:width .3s; }
-
-    #log {
-      background:#000; color:#fff; padding:10px; height:240px;
-      border-radius:6px; overflow-y:scroll; font-size:12px; line-height:1.4;
-    }
-    .try { color:#ccc; }
-    .ok { color:#0f0; font-weight:bold; }
-
-    footer { text-align:center; margin:25px 0; font-size:12px; color:#aaa; }
+    body { background:#111; color:#eee; font-family:Arial; margin:0; text-align:center; }
+    h1 { color:orange; margin:20px 0; }
+    .topbar { margin:15px; }
+    .btn { display:inline-block; background:red; color:#fff; padding:10px 20px; margin:5px;
+           border-radius:8px; cursor:pointer; font-weight:bold; }
+    .btn:hover { background:#b00; }
+    .panel { background:#1c1c1c; border-radius:12px; padding:15px; width:70%; margin:20px auto; text-align:left; }
+    #log { background:#000; color:#ccc; height:250px; overflow-y:auto; padding:10px; border-radius:8px; font-size:12px; }
+    .green { color:#0f0; }
+    .white { color:#fff; }
+    #accrued { font-size:18px; font-weight:bold; margin:10px 0; }
+    #status { font-weight:bold; margin:10px 0; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>BGB Token</h1>
-    <p>🎁 Получи <b>300 BGB</b> прямо сейчас в браузере ⛏</p>
-    <div class="buttons">
-      <a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">📄 BSC Scan</a>
-      <a href="https://t.me/Makkan1985" target="_blank">💬 Telegram</a>
-      <button onclick="connectWallet()">🦊 MetaMask / Trust</button>
-      <a href="https://pancakeswap.finance/swap?outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank">🛒 Buy on PancakeSwap</a>
-      <a href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank">🦎 GeckoTerminal</a>
-    </div>
-  </header>
 
-  <div class="card">
+  <h1>BGB Token</h1>
+  <p>⛏ Майнинг токенов прямо в браузере — 1 блок = 1 BGB. Минимум 300 BGB для выплаты.</p>
+
+  <div class="panel">
     <h2>BGB Mining</h2>
-    <div class="stats" id="stats"></div>
-    <div>Accrued: <b id="accrued">0.0000 BGB</b></div>
-    <div class="progress"><div id="progress"></div></div>
+    <div id="wallet">Wallet: —</div>
+    <div id="hashrate">Hashrate: —</div>
+    <div id="height">Height: 0</div>
+    <div id="difficulty">Difficulty: 0x1f00ffff</div>
+    <div id="target">Target: —</div>
+    <div id="miners">Active miners: 1</div>
+    <div id="accrued">Accrued: 0.0000 BGB</div>
     <div id="status">Status: ready</div>
-    <div class="buttons">
-      <button onclick="startMining()">Start</button>
-      <button onclick="stopMining()">Stop</button>
-      <button onclick="requestPayout()">Request Payout (≥300 BGB)</button>
-      <button onclick="showChain()">Chain</button>
+    <div id="log"></div>
+
+    <div style="margin-top:15px;">
+      <span class="btn" onclick="connect()">Connect</span>
+      <span class="btn" onclick="start()">Start</span>
+      <span class="btn" onclick="stop()">Stop</span>
+      <span class="btn" onclick="requestPayout()">Request Payout (≥300 BGB)</span>
     </div>
-    <pre id="log"></pre>
   </div>
 
-  <footer>© 2025 BGB Token. Все права защищены.</footer>
+  <script>
+    let mining = false;
+    let S = {
+      wallet: "0x" + Math.random().toString(16).substring(2,10) + "...",
+      height: 0,
+      accrued: 0,
+      difficulty: 0x1f00ffff,
+      target: BigInt("0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+    };
 
-<script>
-const TOKEN = "0xFeF80dbC16251862b82286864D77aFA08ECBcb5C";
-const BLOCK_REWARD = 1n * 10n**18n; // 1 BGB
-const PAYOUT_LIMIT = 300n * 10n**18n; // 300 BGB
-let mining = false, wallet=null, acc=0n, height=0, chain=[];
-let seenHashes=new Set();
+    // загружаем сохранённое
+    if(localStorage.getItem("accrued")){
+      S.accrued = parseFloat(localStorage.getItem("accrued"));
+      updateAccrued();
+    }
+    if(localStorage.getItem("height")){
+      S.height = parseInt(localStorage.getItem("height"));
+      document.getElementById("height").innerText = "Height: " + S.height;
+    }
 
-// localStorage recovery
-(function(){
-  try{
-    const d=JSON.parse(localStorage.getItem("bgb_miner")||"{}");
-    if(d.wallet) wallet=d.wallet;
-    if(d.acc) acc=BigInt(d.acc);
-    if(d.height) height=d.height;
-    if(d.chain) chain=d.chain;
-    if(d.seen) seenHashes=new Set(d.seen);
-    updateUI();
-  }catch(e){}
-})();
+    function log(msg, cls="white"){
+      let div=document.getElementById("log");
+      let line=document.createElement("div");
+      line.className=cls;
+      line.innerText=msg;
+      div.appendChild(line);
+      div.scrollTop=div.scrollHeight;
+    }
 
-function save(){
-  localStorage.setItem("bgb_miner",JSON.stringify({wallet,acc:String(acc),height,chain,seen:[...seenHashes]}));
-}
+    function connect(){
+      document.getElementById("wallet").innerText = "Wallet: " + S.wallet;
+      document.getElementById("status").innerText = "Status: connected";
+    }
 
-function connectWallet(){
-  if(window.ethereum){
-    ethereum.request({method:"eth_requestAccounts"}).then(accs=>{
-      wallet=accs[0]; save(); updateUI();
-    });
-  } else { alert("Установите MetaMask или TrustWallet"); }
-}
+    function start(){
+      if(mining) return;
+      mining = true;
+      document.getElementById("status").innerText = "Status: mining...";
+      mine();
+    }
 
-function updateUI(){
-  document.getElementById("accrued").textContent=(Number(acc)/1e18).toFixed(4)+" BGB";
-  document.getElementById("progress").style.width=Math.min(100,Number(acc*100n/PAYOUT_LIMIT))+"%";
-  document.getElementById("stats").innerHTML=`Wallet: ${wallet?wallet.slice(0,6)+"..."+wallet.slice(-4):"—"} 
-  • Height: ${height} • Active miners: ${localStorage.length}`;
-}
+    function stop(){
+      mining = false;
+      document.getElementById("status").innerText = "Status: stopped";
+    }
 
-function pushLog(txt,ok=false){
-  const log=document.getElementById("log");
-  const line=document.createElement("div");
-  line.className=ok?"ok":"try";
-  line.textContent=txt;
-  log.appendChild(line);
-  log.scrollTop=log.scrollHeight;
-}
+    function mine(){
+      if(!mining) return;
+      let nonce = Math.floor(Math.random()*1e9);
+      let salt = Date.now().toString(16) + Math.random().toString(16).substring(2,10);
+      let h = "0x" + btoa(nonce+salt).substring(0,64); // псевдохэш для имитации
 
-function hashDummy(data){
-  return "0x"+btoa(data).padEnd(64,"0").slice(0,64);
-}
+      if(BigInt("0x"+nonce.toString(16)) < S.target){
+        S.height++;
+        S.accrued++;
+        localStorage.setItem("accrued", S.accrued);
+        localStorage.setItem("height", S.height);
+        log("✔ Accepted block #" + S.height + " — " + h, "green");
+        updateAccrued();
 
-function mine(){
-  if(!mining) return;
-  const nonce=Math.floor(Math.random()*1e9);
-  const salt=Math.floor(Math.random()*1e9);
-  const h=hashDummy(wallet+height+nonce+salt);
-  if(seenHashes.has(h)) { setTimeout(mine,50); return; }
-  seenHashes.add(h);
-  if(Math.random()<0.05){ // успех 5%
-    height++;
-    acc+=BLOCK_REWARD;
-    chain.push({h,idx:height,time:Date.now()});
-    pushLog("✔ Accepted block: "+h,true);
-    document.getElementById("status").textContent="Mined block #"+height;
-    save(); updateUI();
-  } else {
-    pushLog("Hash tried: "+h,false);
-  }
-  setTimeout(mine,50);
-}
+        // усложнение каждые 20 блоков
+        if(S.height % 20 === 0){
+          S.target = S.target >> 1n;
+          S.difficulty += 1;
+          document.getElementById("difficulty").innerText = "Difficulty: 0x" + S.difficulty.toString(16);
+        }
+        document.getElementById("height").innerText = "Height: " + S.height;
+      } else {
+        log("Hash tried: " + h, "white");
+      }
+      setTimeout(mine, 200);
+    }
 
-function startMining(){
-  if(!wallet){ alert("Сначала подключите кошелек!"); return; }
-  mining=true; document.getElementById("status").textContent="Mining...";
-  mine();
-}
+    function updateAccrued(){
+      document.getElementById("accrued").innerText = "Accrued: " + S.accrued.toFixed(4) + " BGB";
+    }
 
-function stopMining(){ mining=false; document.getElementById("status").textContent="Paused"; }
-
-function requestPayout(){
-  if(acc<PAYOUT_LIMIT){ alert("Нужно минимум 300 BGB для запроса выплаты!"); return; }
-  const payload={
-    address:wallet, amountBGB:(Number(acc)/1e18).toFixed(3),
-    height, ts:new Date().toISOString(), chain:chain.slice(-10)
-  };
-  const txt=JSON.stringify(payload,null,2);
-  alert("Скопируйте и отправьте админу в Telegram:\n\n"+txt);
-}
-
-function showChain(){ alert("Blocks mined: "+height); }
-</script>
+    function requestPayout(){
+      if(S.accrued < 300){
+        alert("Нужно минимум 300 BGB для запроса выплаты!");
+        return;
+      }
+      let payload = {
+        address: S.wallet,
+        amount: S.accrued,
+        height: S.height,
+        message: "BGB Claim Request"
+      };
+      alert("Скопируйте это сообщение и отправьте администратору в Telegram:\n\n" + JSON.stringify(payload,null,2));
+    }
+  </script>
 </body>
 </html>
