@@ -48,11 +48,16 @@
 
     .buttons{ display:flex; flex-wrap:wrap; justify-content:center; }
     .buttons a, .buttons button{
-      text-decoration:none; display:inline-block; margin:10px; padding:15px 28px;
+      text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+      margin:10px; padding:15px 28px;
       background:var(--accent); border-radius:12px; color:#fff; font-weight:bold; font-size:18px;
       box-shadow:0 0 10px var(--accent); transition:.25s ease-in-out; border:none; cursor:pointer;
     }
     .buttons a:hover, .buttons button:hover{ background:var(--accent-2); transform:translateY(-1px) scale(1.02); }
+    .buttons img{ width:20px; height:20px; display:inline-block; }
+
+    .btn-icon{ display:inline-flex; align-items:center; gap:8px; }
+    .btn-icon svg{ width:18px; height:18px; }
 
     .contract{ background:var(--surface); color:#fff; margin:18px auto 0; padding:15px 20px;
       border-radius:12px; font-size:16px; display:inline-flex; align-items:center; gap:12px; }
@@ -97,8 +102,14 @@
         <button type="button" onclick="handleMetaMask(event)">🦊 MetaMask</button>
         <button type="button" onclick="handleTrust(event)">🔓 Trust Wallet</button>
         <button type="button" onclick="openAddLiquidity(event)">💧 Add Liquidity</button>
-        <button type="button" onclick="openBuyPancake(event)">🛒 Buy on PancakeSwap</button>
-        <button type=\"button\" onclick=\"openHescoTerminal(event)\"> <img src=\"https://www.geckoterminal.com/favicon.ico\" alt=\"GeckoTerminal\" style=\"width:18px;height:18px;vertical-align:middle;margin-right:6px;\"/> HESCO Terminal</button>
+        <button type=\"button\" class=\"btn-icon\" onclick=\"openBuyPancake(event)\">
+          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"14\" r=\"7\" fill=\"currentColor\" opacity=\".15\"/><circle cx=\"9\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"15\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><path d=\"M8 6c0-1.7 1.3-3 3-3v0c.8 0 1.5.3 2 .8.5-.5 1.2-.8 2-.8 1.7 0 3 1.3 3 3 0 1.2-.7 2.3-1.7 2.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>
+          Buy on PancakeSwap
+        </button>
+        <button type=\"button\" class=\"btn-icon\" onclick=\"openHescoTerminal(event)\">
+          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"currentColor\" opacity=\".15\"/><path d=\"M8 14c2 0 3-2 4-3s3-1 4 1-1 4-3 4-3 2-5 2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"9\" cy=\"9\" r=\"1\" fill=\"currentColor\"/></svg>
+          HESCO Terminal
+        </button>
       </div>
 
       <div class="contract" aria-live="polite">
@@ -140,7 +151,7 @@
       image: 'https://buzizima1985.github.io/bgbtoken.github.io/logo.png'
     };
 
-    const HESCO_URL = 'https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a'; // TODO: вставьте ссылку на HESCO Terminal для покупки токена (если неизвестно — оставьте пустым)
+    const HESCO_URL = 'https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a';
 
     const BSC_PARAMS = {
       chainId: '0x38', // 56
@@ -293,45 +304,3 @@
             return startMs;
           }catch(e){ lastErr = e; }
         }
-        throw lastErr || new Error('RPC unavailable');
-      }
-
-      function runCountdown(unlockTs){
-        const el = $('countdown');
-        function render(){
-          const diff = unlockTs - Date.now();
-          if (diff <= 0){ el.textContent = '⏳ Блокировка закончена'; return; }
-          const sec = Math.floor(diff / 1000);
-          const d = Math.floor(sec / 86400);
-          const h = Math.floor((sec % 86400) / 3600);
-          const m = Math.floor((sec % 3600) / 60);
-          const s = sec % 60;
-          el.textContent = `${d}д ${pad2(h)}ч ${pad2(m)}м ${pad2(s)}с`;
-        }
-        let id; const start = () => { clearInterval(id); render(); id = setInterval(render, 1000); };
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); }, { passive:true });
-        start();
-      }
-
-      (async () => {
-        try{
-          $('lock-hint').textContent = 'Синхронизация с блокчейном BSC…';
-          const startMs = await fetchStartMs();
-          $('lock-start').textContent = fmtUTC(startMs);
-
-          const end = new Date(startMs);
-          end.setUTCFullYear(end.getUTCFullYear() + LOCK_YEARS);
-          const unlockTs = end.getTime();
-
-          $('lock-hint').textContent = '';
-          runCountdown(unlockTs);
-        }catch(e){
-          console.error(e);
-          $('lock-hint').textContent = 'Не удалось получить время блокировки (RPC недоступен). Попробуйте обновить страницу позже.';
-          $('countdown').textContent = '—';
-        }
-      })();
-    })();
-  </script>
-</body>
-</html>
