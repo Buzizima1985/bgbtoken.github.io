@@ -9,36 +9,15 @@
 <style>
   :root{--accent:#e60000;--accent2:#cc0000;--ok:#00ff88;--txt:#fff}
   *{box-sizing:border-box;margin:0;padding:0}
-  body,html{
-    height:100%;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
-    background:#0b0f14 url('./bg.jpg') no-repeat center/cover;
-  }
-  .overlay{
-    min-height:100%;display:flex;flex-direction:column;align-items:center;
-    padding:24px 16px;gap:14px;
-    background:radial-gradient(1000px 500px at 50% -10%,#21374733 5%,#0b0f14 60%);
-  }
-  h1{
-    font-weight:800;font-size:44px;line-height:1;
-    background:linear-gradient(90deg,#ff7a00,#ff3b3b);
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:6px
-  }
+  body,html{height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;background:#0b0f14 url('./bg.jpg') no-repeat center/cover}
+  .overlay{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:24px 16px;gap:14px;background:radial-gradient(1000px 500px at 50% -10%,#21374733 5%,#0b0f14 60%)}
+  h1{font-weight:800;font-size:44px;line-height:1;background:linear-gradient(90deg,#ff7a00,#ff3b3b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:6px}
   .subtitle{color:#eaeaea;font-size:16px;margin-bottom:6px}
   .buttons{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
-  .btn{
-    padding:12px 20px;border:none;border-radius:12px;background:var(--accent);
-    color:#fff;font-weight:700;box-shadow:0 0 10px #e60000;cursor:pointer;font-size:16px;
-    text-decoration:none;display:inline-flex;align-items:center;gap:8px
-  }
+  .btn{padding:12px 20px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 0 10px #e60000;cursor:pointer;font-size:16px;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
   .btn:hover{background:var(--accent2);transform:translateY(-1px)}
 
-  /* Компактная карточка майнера */
-  .miner-card{
-    max-width:720px;width:100%;margin:18px auto;padding:16px 18px;
-    background:rgba(0,0,0,.28);backdrop-filter:blur(4px);
-    border-radius:18px;color:#fff;
-  }
+  .miner-card{max-width:720px;width:100%;margin:18px auto;padding:16px 18px;background:rgba(0,0,0,.28);backdrop-filter:blur(4px);border-radius:18px;color:#fff}
   .miner-card .hdr{font-weight:800;font-size:20px;margin-bottom:6px}
   .miner-card .row{font-size:14px;margin:2px 0;opacity:.95}
   .miner-card .acc{font-size:20px;margin:8px 0}
@@ -52,7 +31,6 @@
   .list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:160px;overflow:auto;background:#0b0f14;border:1px solid #2a3240;padding:8px;border-radius:10px;margin-top:6px;text-align:left;color:#e5e7eb}
   footer{margin-top:20px;color:#a9b0b6;font-size:13px}
 
-  /* Модалка Claim */
   .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:50;padding:16px}
   .modal .card{max-width:680px;width:100%;background:#0f1318;border:1px solid #293241;border-radius:14px;color:#e5e7eb;padding:16px;text-align:left}
   .modal pre{max-height:360px;overflow:auto;background:#0b0f14;border-radius:10px;padding:12px;font-size:12px;color:#d1d5db}
@@ -64,7 +42,6 @@
     <h1>BGB Token</h1>
     <div class="subtitle">🎁 Получи <b>300 BGB</b> прямо сейчас на свой кошелёк</div>
 
-    <!-- Верхние кнопки -->
     <div class="buttons">
       <a class="btn" href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">📄 BSC Scan</a>
       <a class="btn" href="https://t.me/Makkan1985" target="_blank" rel="noopener">💬 Telegram</a>
@@ -75,7 +52,6 @@
       <a class="btn" href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank" rel="noopener">🧭 GeckoTerminal</a>
     </div>
 
-    <!-- Майнер -->
     <div id="miner" class="miner-card" aria-live="polite">
       <div class="hdr">BGB Mining</div>
       <div class="row">Wallet: <span id="sm-addr">—</span></div>
@@ -101,7 +77,6 @@
       </div>
     </div>
 
-    <!-- Контракт -->
     <div class="miner-card" style="max-width:720px">
       <div class="row">Контракт токена: <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code></div>
     </div>
@@ -109,7 +84,6 @@
     <footer>© 2025 BGB Token</footer>
   </div>
 
-  <!-- Модалка Claim -->
   <div id="claim-modal" class="modal" role="dialog" aria-modal="true">
     <div class="card">
       <h3 style="margin-bottom:8px">Claim Payload</h3>
@@ -122,11 +96,10 @@
     </div>
   </div>
 
-  <!-- ethers.js -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
 
   <script>
-  // ===== Верхние кнопки кошельков =====
+  // ===== верхние кнопки
   async function handleMetaMask(e){
     e && e.preventDefault && e.preventDefault();
     const token={address:'0xFeF80dbC16251862b82286864D77aFA08ECBcb5C',symbol:'BGB',decimals:18,image:'logo.png'};
@@ -144,167 +117,140 @@
     window.open('https://trustwallet.com/download','_blank');
   }
 
-  // ===== Майнер (цепочка, ретаргет, мемпул, Claim, счётчик вкладок) =====
+  // ===== майнер (персональное хранение per-wallet)
   (function(){
-    const KEY='bgb_miner_ui_v2';
-    const GENESIS_PREV='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d'; // стартовый prev
-    const UNIT=30n*10n**18n;
-    const BASE_RATE=5n*10n**16n;  // 0.05 BGB/s визуально
-    const BLOCK_TARGET_TIME=10;   // сек/блок
-    const RETARGET_INTERVAL=20;   // блоков до ретаргета
-    const MAX_VIEW=200;
+    // --- настройки
+    const GENESIS_PREV='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d';
+    const UNIT=30n*10n**18n, BASE_RATE=5n*10n**16n, BLOCK_TARGET_TIME=10, RETARGET_INTERVAL=20, MAX_VIEW=200;
 
-    let st={addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],session:randId(16)};
-    let mp={count:0,fee:0.0,size:0};
-    let hrBase=Number(BASE_RATE/10n**14n)/100, hrJitter=0;
-    let pendingClaim=null;
+    // --- онлайн-счётчик вкладок (без сервера)
+    const ONLINE_KEY='bgb_online_tabs_v1', CH_NAME='bgb_online_broadcast_v1';
+    const tabId = randId(12); const bc=('BroadcastChannel' in window)?new BroadcastChannel(CH_NAME):null;
+    function getMap(){ try{return JSON.parse(localStorage.getItem(ONLINE_KEY)||'{}')}catch{return{}} }
+    function setMap(m){ localStorage.setItem(ONLINE_KEY, JSON.stringify(m)) }
+    function cleanup(m){ const now=Date.now(),t=15000; for(const k in m){ if((now-m[k])>t) delete m[k]; } return m; }
+    function touch(){ let m=cleanup(getMap()); m[tabId]=Date.now(); setMap(m); const n=Object.keys(m).length; const el=$('sm-online'); if(el) el.textContent=n; bc&&bc.postMessage({type:'online',n}); }
+    touch(); setInterval(touch,5000);
+    window.addEventListener('storage',e=>{ if(e.key===ONLINE_KEY){ const n=Object.keys(cleanup(getMap())).length; const el=$('sm-online'); if(el) el.textContent=n; }});
+    bc&&bc.addEventListener('message',e=>{ if(e.data?.type==='online'){ const el=$('sm-online'); if(el) el.textContent=e.data.n; }});
+    window.addEventListener('beforeunload',()=>{ const m=getMap(); delete m[tabId]; setMap(m); bc&&bc.postMessage({type:'online',n:Object.keys(m).length}); });
 
-    // ----- счётчик вкладок (онлайн) -----
-    const ONLINE_KEY='bgb_online_tabs_v1';
-    const CH_NAME='bgb_online_broadcast_v1';
-    const tabId = randId(12);
-    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel(CH_NAME) : null;
-
-    function getMap(){ try{ return JSON.parse(localStorage.getItem(ONLINE_KEY)||'{}'); }catch{return{}} }
-    function setMap(m){ localStorage.setItem(ONLINE_KEY, JSON.stringify(m)); }
-    function cleanup(m){ const now=Date.now(); const t=15000; for(const k in m){ if((now - m[k])>t) delete m[k]; } return m; }
-    function touchSelf(){
-      let m = cleanup(getMap()); m[tabId]=Date.now(); setMap(m);
-      const n = Object.keys(m).length; const el=document.getElementById('sm-online'); if(el) el.textContent=n;
-      bc && bc.postMessage({type:'online', n});
+    // --- состояние и хранение per-wallet
+    const KEY_BASE='bgb_miner_ui_v3';
+    function makeKey(addr){ return KEY_BASE + ':' + (addr?addr.toLowerCase():'guest'); }
+    const DEFAULT_STATE=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],session:randId(16)});
+    let st = DEFAULT_STATE();
+    function save(){ try{ const k=makeKey(st.addr); localStorage.setItem(k, JSON.stringify({...st,accrued:st.accrued.toString()})); }catch{} }
+    function loadFor(addr){
+      try{
+        const raw=localStorage.getItem(makeKey(addr));
+        if(!raw){ st=DEFAULT_STATE(); st.addr=addr||null; return; }
+        const p=JSON.parse(raw);
+        st={...DEFAULT_STATE(),...p}; if(typeof st.accrued==='string') st.accrued=BigInt(st.accrued); st.addr=addr||null;
+      }catch{ st=DEFAULT_STATE(); st.addr=addr||null; }
     }
-    // старт + периодический «пинг»
-    touchSelf();
-    setInterval(touchSelf, 5000);
-    // реакция на изменения из других вкладок
-    window.addEventListener('storage', e=>{ if(e.key===ONLINE_KEY){ const m=getMap(); const n=Object.keys(cleanup(m)).length; const el=document.getElementById('sm-online'); if(el) el.textContent=n; }});
-    bc && bc.addEventListener('message', e=>{ if(e.data?.type==='online'){ const el=document.getElementById('sm-online'); if(el) el.textContent=e.data.n; }});
-    // при закрытии — убираем себя
-    window.addEventListener('beforeunload', ()=>{ const m=getMap(); delete m[tabId]; setMap(m); bc && bc.postMessage({type:'online', n:Object.keys(m).length}); });
 
-    // ----- утилиты майнера -----
+    // --- утилиты / хэш / таргет
     const $=id=>document.getElementById(id);
-    function randId(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('');}
-    function fmt(big,dp=4){const d=10n**18n;const i=big/d;const f=(big%d).toString().padStart(18,'0').slice(0,dp);return `${i}.${f}`;}
-    function save(){try{localStorage.setItem(KEY,JSON.stringify({...st,accrued:st.accrued.toString()}));}catch{}}
-    function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');if(x){st=Object.assign(st,x);if(typeof st.accrued==='string')st.accrued=BigInt(st.accrued);}}catch{}}
+    function randId(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
+    function fmt(x,dp=4){const d=10n**18n;const i=x/d;const f=(x%d).toString().padStart(18,'0').slice(0,dp);return `${i}.${f}`}
     const k256=s=>ethers.keccak256(ethers.toUtf8Bytes(s));
-    function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh));}
-    function targetToCompact(t){let exp=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;exp++;}const mant=Number(n&0x007fffffn);return((exp&0xff)<<24)|mant;}
+    function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
+    function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
     const curTarget=()=>compactToTarget(st.bits);
 
-    function showHashrate(){
-      const el=$('sm-hr'); if(!el) return;
-      hrJitter += (Math.random()-0.5)*0.1;
-      hrJitter = Math.max(-0.5, Math.min(0.5, hrJitter));
-      const hr = Math.max(0, hrBase * (1 + hrJitter/10));
-      el.textContent = `${hr.toFixed(2)} BGB/s`;
-    }
-
+    // --- рендер
+    let hrBase = Number(BASE_RATE/10n**14n)/100, hrJitter=0;
+    function showHashrate(){ hrJitter+=(Math.random()-0.5)*0.1; hrJitter=Math.max(-0.5,Math.min(0.5,hrJitter)); const hr=Math.max(0, hrBase*(1+hrJitter/10)); const el=$('sm-hr'); if(el) el.textContent=`${hr.toFixed(2)} BGB/s`; }
     function render(){
-      if($('sm-addr')) $('sm-addr').textContent=st.addr?`${st.addr.slice(0,6)}…${st.addr.slice(-4)}`:'—';
-      if($('sm-bits')) $('sm-bits').textContent='0x'+st.bits.toString(16);
-      if($('sm-height')) $('sm-height').textContent=st.height;
-      if($('sm-target')) $('sm-target').textContent='0x'+curTarget().toString(16).slice(0,16)+'…';
-      if($('sm-acc')) $('sm-acc').textContent=fmt(st.accrued,4);
-      if($('sm-last')) $('sm-last').textContent=st.height?st.chain.at(-1).hash.slice(0,10)+'…':'—';
-      if($('sm-retarget')) $('sm-retarget').textContent=RETARGET_INTERVAL-(st.height%RETARGET_INTERVAL||RETARGET_INTERVAL);
-      const pct=Math.min(100,Number(st.accrued*100n/UNIT)); if($('sm-bar')) $('sm-bar').style.width=pct+'%';
-      if($('mp-count')) $('mp-count').textContent=mp.count;
-      if($('mp-fee')) $('mp-fee').textContent=mp.fee.toFixed(2);
-      if($('mp-size')) $('mp-size').textContent=mp.size;
-      const list=$('sm-chain'); if(list && !list.hasAttribute('hidden')){
-        list.innerHTML=st.chain.slice(-MAX_VIEW).map(b=>`<div>#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`).reverse().join('');
-      }
+      $('sm-addr').textContent = st.addr?`${st.addr.slice(0,6)}…${st.addr.slice(-4)}`:'—';
+      $('sm-bits').textContent = '0x'+st.bits.toString(16);
+      $('sm-height').textContent = st.height;
+      $('sm-target').textContent = '0x'+curTarget().toString(16).slice(0,16)+'…';
+      $('sm-acc').textContent = fmt(st.accrued,4);
+      $('sm-last').textContent = st.height?st.chain.at(-1).hash.slice(0,10)+'…':'—';
+      $('sm-retarget').textContent = RETARGET_INTERVAL - (st.height % RETARGET_INTERVAL || RETARGET_INTERVAL);
+      $('sm-bar').style.width = Math.min(100, Number(st.accrued*100n/UNIT)) + '%';
+      $('mp-count').textContent = mp.count; $('mp-fee').textContent=mp.fee.toFixed(2); $('mp-size').textContent=mp.size;
+      const list=$('sm-chain'); if(!list.hasAttribute('hidden')) list.innerHTML = st.chain.slice(-200).map(b=>`<div>#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`).reverse().join('');
       showHashrate();
     }
 
+    // --- майнинг
+    let mp={count:0,fee:0.0,size:0};
     function mineBatch(){
       const prev = st.height ? st.chain.at(-1).hash : GENESIS_PREV;
-      const target = curTarget();
-      const tries = 512;
-      const nowSec = Math.floor(Date.now()/1000);
+      const target = curTarget(); const tries=512; const nowSec=Math.floor(Date.now()/1000);
       for(let i=0;i<tries;i++){
         const nonce=randId(8);
         const header=JSON.stringify({ver:1,prev,time:nowSec,bits:st.bits,nonce,merkle:randId(16)});
         const h=k256(header);
-        if(BigInt(h) <= target){
+        if(BigInt(h)<=target){
           const blk={idx:st.height+1,time:nowSec,bits:st.bits,nonce,prev,hash:h};
-          st.chain.push(blk); st.height=blk.idx;
-          if(st.chain.length>MAX_VIEW) st.chain=st.chain.slice(-MAX_VIEW);
-          if($('sm-msg')) $('sm-msg').textContent=`Mined block #${blk.idx}`;
+          st.chain.push(blk); st.height=blk.idx; if(st.chain.length>200) st.chain=st.chain.slice(-200);
+          $('sm-msg').textContent = `Mined block #${blk.idx}`;
           if(st.height % RETARGET_INTERVAL === 0) retarget();
           return true;
         }
       }
       return false;
     }
-
     function retarget(){
-      if(st.height < RETARGET_INTERVAL) return;
-      const from=st.chain.length-RETARGET_INTERVAL;
-      const first=st.chain[from], last=st.chain.at(-1);
-      const actual=Math.max(1, last.time-first.time);
-      const span=BLOCK_TARGET_TIME*RETARGET_INTERVAL;
-      const oldT=curTarget();
-      let newT = oldT * BigInt(actual) / BigInt(span);
-      const minT=oldT/4n, maxT=oldT*4n;
-      if(newT<minT) newT=minT; if(newT>maxT) newT=maxT;
-      st.bits=targetToCompact(newT);
+      if(st.height<RETARGET_INTERVAL) return;
+      const from=st.chain.length-RETARGET_INTERVAL, first=st.chain[from], last=st.chain.at(-1);
+      const actual=Math.max(1,last.time-first.time), span=BLOCK_TARGET_TIME*RETARGET_INTERVAL;
+      const oldT=curTarget(); let newT= oldT*BigInt(actual)/BigInt(span);
+      const minT=oldT/4n, maxT=oldT*4n; if(newT<minT)newT=minT; if(newT>maxT)newT=maxT;
+      st.bits = targetToCompact(newT);
     }
-
     function tick(){
       if(!st.running) return;
       const now=Date.now(), dt=now-st.lastMs; if(dt<=0) return;
       st.accrued += BASE_RATE * BigInt(Math.floor(dt/1000));
       st.lastMs = now;
-      // мемпул
       mp.count=Math.max(0,Math.round(mp.count+(Math.random()*6-3)));
       mp.fee=Math.max(0.1,mp.fee+(Math.random()*0.2-0.1));
       mp.size=Math.max(0,Math.round(mp.size+(Math.random()*8-4)));
       mineBatch(); save(); render();
     }
 
-    // Кнопки
+    // --- кнопки
     window.smConnect = async function(){
       const injected = (window.__bgb_provider || window.ethereum);
       if(!injected){ alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.'); return; }
-      try{ const p=new ethers.BrowserProvider(injected); const s=await p.getSigner(); st.addr=await s.getAddress(); save(); render(); }
-      catch{ alert('Не удалось подключить кошелёк'); }
-    };
-    window.smStart=function(){ st.running=true; st.lastMs=Date.now(); if($('sm-msg')) $('sm-msg').textContent='Mining…'; save(); render(); };
-    window.smStop=function(){ st.running=false; if($('sm-msg')) $('sm-msg').textContent='Paused'; save(); render(); };
-    window.smToggleChain=function(){ const el=$('sm-chain'); if(!el) return; if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden',''); render(); };
-
-    // Claim
-    window.smRequest = async function(){
-      if(st.accrued < UNIT){ alert('Нужно ≥30 BGB'); return; }
-      const injected = (window.__bgb_provider || window.ethereum);
-      if(!injected){ alert('Подключите кошелёк'); return; }
       try{
         const p=new ethers.BrowserProvider(injected), s=await p.getSigner(), addr=await s.getAddress();
-        const payoutWei=st.accrued-(st.accrued%UNIT), amountBGB=fmt(payoutWei,4);
-        const last=st.chain.at(-1);
+        loadFor(addr); st.addr=addr; save(); render();
+      }catch{ alert('Не удалось подключить кошелёк'); }
+    };
+    window.smStart=function(){ st.running=true; st.lastMs=Date.now(); $('sm-msg').textContent='Mining…'; save(); render(); };
+    window.smStop=function(){ st.running=false; $('sm-msg').textContent='Paused'; save(); render(); };
+    window.smToggleChain=function(){ const el=$('sm-chain'); if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden',''); render(); };
+
+    // --- Claim
+    window.smRequest = async function(){
+      if(st.accrued<UNIT){ alert('Нужно ≥30 BGB'); return; }
+      const injected=(window.__bgb_provider||window.ethereum); if(!injected){ alert('Подключите кошелёк'); return; }
+      try{
+        const p=new ethers.BrowserProvider(injected), s=await p.getSigner(), addr=await s.getAddress();
+        const payoutWei=st.accrued-(st.accrued%UNIT), amountBGB=fmt(payoutWei,4), last=st.chain.at(-1);
         const payload={address:addr,session:st.session,amountBGB,amountWei:payoutWei.toString(),height:st.height,lastBlock:last?last.hash:null,bits:st.bits,ts:new Date().toISOString()};
         const msg=`BGB Claim Request\nAddress: ${addr}\nSession: ${st.session}\nAmount: ${amountBGB} BGB\nHeight: ${st.height}\nBits: 0x${st.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nTime: ${payload.ts}`;
         const sig=await s.signMessage(msg);
         const claim={...payload,signature:sig,message:msg};
-        // модалка предпросмотра
-        const modal=document.getElementById('claim-modal'); const pre=document.getElementById('claim-json');
-        if(modal && pre){ pre.textContent=JSON.stringify(claim,null,2); modal.style.display='flex'; }
-        else{
-          try{ await navigator.clipboard.writeText(JSON.stringify(claim,null,2)); }catch{}
-          const share=`https://t.me/share/url?url=&text=${encodeURIComponent(msg+'\n\nSignature: '+sig)}`;
-          window.open(share,'_blank','noopener,noreferrer');
-        }
+        const modal=$('claim-modal'), pre=$('claim-json');
+        if(modal&&pre){ pre.textContent=JSON.stringify(claim,null,2); modal.style.display='flex'; }
+        else{ try{ await navigator.clipboard.writeText(JSON.stringify(claim,null,2)); }catch{} const share=`https://t.me/share/url?url=&text=${encodeURIComponent(msg+'\n\nSignature: '+sig)}`; window.open(share,'_blank','noopener,noreferrer'); }
       }catch(e){ console.error(e); alert('Ошибка запроса'); }
     };
-    window.copyClaim=async function(){ const pre=document.getElementById('claim-json'); if(!pre) return; try{ await navigator.clipboard.writeText(pre.textContent); }catch{} };
-    window.sendClaim=function(){ const pre=document.getElementById('claim-json'); if(!pre) return; try{ const obj=JSON.parse(pre.textContent); const share=`https://t.me/share/url?url=&text=${encodeURIComponent(obj.message+'\n\nSignature: '+obj.signature)}`; window.open(share,'_blank','noopener,noreferrer'); }catch{} };
-    window.closeClaim=function(){ const m=document.getElementById('claim-modal'); if(m) m.style.display='none'; };
+    window.copyClaim=async function(){ const pre=$('claim-json'); if(!pre) return; try{ await navigator.clipboard.writeText(pre.textContent); }catch{} };
+    window.sendClaim=function(){ const pre=$('claim-json'); if(!pre) return; try{ const obj=JSON.parse(pre.textContent); const share=`https://t.me/share/url?url=&text=${encodeURIComponent(obj.message+'\n\nSignature: '+obj.signature)}`; window.open(share,'_blank','noopener,noreferrer'); }catch{} };
+    window.closeClaim=function(){ const m=$('claim-modal'); if(m) m.style.display='none'; };
 
-    // Старт
-    load(); render(); setInterval(tick,500);
+    // --- старт: гость всегда с нуля
+    loadFor(null);
+    render();
+    setInterval(tick,500);
   })();
   </script>
 </body>
