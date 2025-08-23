@@ -93,6 +93,8 @@ footer{margin:16px 0;color:#9aa0a6}
 
       <div class="btns">
         <button class="btn-red" onclick="doConnect()">Connect</button>
+        <button class="btn-red" onclick="openInMetaMask()">Open in MetaMask</button>
+        <button class="btn-red" onclick="openInTrust()">Open in Trust</button>
         <button class="btn-red" onclick="start()">Start</button>
         <button class="btn-red" onclick="stop()">Stop</button>
         <button class="btn-red" onclick="requestPayout()">Request Payout (≥300 BGB)</button>
@@ -249,13 +251,38 @@ footer{margin:16px 0;color:#9aa0a6}
     mineBatch(); save(); render();
   }
 
+  // ===== Deep links for mobile
+  function openInMetaMask(){
+    const dapp = 'https://metamask.app.link/dapp/' + location.host + location.pathname + (location.search||'');
+    window.open(dapp,'_blank','noopener,noreferrer');
+  }
+  function openInTrust(){
+    const dapp = 'https://link.trustwallet.com/open_url?source=dapp&url=' + encodeURIComponent(location.href);
+    window.open(dapp,'_blank','noopener,noreferrer');
+  }
+
   // actions
   async function doConnect(){
     try{
-      const injected=(window.__bgb_provider||window.ethereum);
-      if(!injected){ alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.'); return; }
+      const injected=(window.__bgb_provider||window.ethereum||window.trustwallet);
+      if(!injected){
+        // если не внутри кошелька — подскажем открыть dApp внутри MM/Trust
+        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+          if (confirm('Похоже, вы открыли сайт вне кошелька. Открыть в MetaMask?')) {
+            openInMetaMask();
+            return;
+          } else if (confirm('Открыть в Trust Wallet?')) {
+            openInTrust();
+            return;
+          }
+        }
+        alert('Откройте сайт в браузере кошелька (MetaMask/Trust) или нажмите "Open in MetaMask / Open in Trust".');
+        return;
+      }
       if(injected.request){ await injected.request({method:'eth_requestAccounts'}); }
-      const p=new ethers.BrowserProvider(injected); const s=await p.getSigner(); const addr=await s.getAddress();
+      const p=new ethers.BrowserProvider(injected);
+      const s=await p.getSigner();
+      const addr=await s.getAddress();
       load(addr); S.addr=addr; save(); render();
     }catch(e){ console.error(e); alert('Не удалось подключить кошелёк'); }
   }
