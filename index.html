@@ -78,6 +78,7 @@ footer{margin:16px 0;color:#9aa0a6}
       <div class="row">Target: <span id="tgt">—</span> • Next retarget in: <span id="rtg">—</span></div>
 
       <div class="tags">
+        <span class="tag">Active miners (tabs): <b id="tabs">1</b></span>
         <span class="tag">Mempool: <b id="mpc">0</b> tx</span>
         <span class="tag">Avg fee: <b id="mpf">0.00</b> gwei</span>
         <span class="tag">Size: <b id="mps">0</b> kB</span>
@@ -127,33 +128,45 @@ footer{margin:16px 0;color:#9aa0a6}
   const k256=s=>ethers.keccak256(ethers.toUtf8Bytes(s));
   function randHex(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
   function fmtB(x,dp=4){const d=10n**18n;const i=x/d;const f=(x%d).toString().padStart(18,'0').slice(0,dp);return `${i}.${f}`}
-
-  // compact ↔ target
-  function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);
-    const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
+  function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
   function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
 
   // ===== state
-  const UNIT=300n*10n**18n;                // порог выплаты 300 BGB
-  const BASE_RATE=5n*10n**16n;             // индикатор "начисления"
+  const UNIT=300n*10n**18n;               // порог выплаты 300 BGB
+  const BASE_RATE=3n*10n**16n;            // скорость начисления (не быстро)
   const TRIES=128, LOG_MAX=400, VIEW_MAX=220;
   const BLOCK_TARGET_TIME=10, RETARGET_INTERVAL=20;
   const GENESIS='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d';
 
-  const KEY='bgb_miner_ui_v3';
+  const KEY='bgb_miner_ui_v4';
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
 
-  function save(){try{localStorage.setItem(KEY+':'+(S.addr||'guest'),JSON.stringify({...S,accrued:S.accrued.toString()}));}catch{}}
+  // защита от повторов хэшей (скользящее окно)
+  const seen=new Set(); const queue=[];
+  function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>2000){ const old=queue.shift(); seen.delete(old); } return true; }
+
+  function save(){ try{ localStorage.setItem(KEY+':'+(S.addr||'guest'), JSON.stringify({...S,accrued:S.accrued.toString()})); }catch{} }
   function load(addr){
-    try{const raw=localStorage.getItem(KEY+':'+(addr||'guest'));
-      if(!raw){S=DEF();S.addr=addr||null;return;}
-      const p=JSON.parse(raw);S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null;
-    }catch{S=DEF();S.addr=addr||null;}
+    try{ const raw=localStorage.getItem(KEY+':'+(addr||'guest'));
+      if(!raw){ S=DEF(); S.addr=addr||null; return; }
+      const p=JSON.parse(raw); S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null;
+    }catch{ S=DEF(); S.addr=addr||null; }
   }
 
-  // ===== ui render
+  // активные вкладки (локально)
+  const TAB_PREFIX='BGB_TAB_'; const TAB_ID=randHex(6);
+  function heartbeat(){ try{ localStorage.setItem(TAB_PREFIX+TAB_ID, String(Date.now())); }catch{} }
+  function countTabs(){ try{
+      const now=Date.now(), ttl=9000; let n=0;
+      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.startsWith(TAB_PREFIX)){ const t=Number(localStorage.getItem(k)); if(now - t < ttl) n++; } }
+      $('tabs').textContent=n||1;
+  }catch{ $('tabs').textContent='1'; } }
+  setInterval(()=>{ heartbeat(); countTabs(); }, 3000); heartbeat(); countTabs();
+
+  // UI
   let hrBase=Number(BASE_RATE/10n**14n)/100, hrJ=0;
+  function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
   function render(){
     $('w').textContent=S.addr?S.addr.slice(0,6)+'…'+S.addr.slice(-4):'—';
     hrJ+=(Math.random()-0.5)*0.1; hrJ=Math.max(-0.5,Math.min(0.5,hrJ));
@@ -175,11 +188,9 @@ footer{margin:16px 0;color:#9aa0a6}
     ].join('');
   }
 
-  // mempool (псевдо)
+  // псевдо-мемпул
   let mp={c:0,f:0,s:0};
   function updMP(){ $('mpc').textContent=mp.c; $('mpf').textContent=mp.f.toFixed(2); $('mps').textContent=mp.s; }
-
-  function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
 
   function retarget(){
     if(S.height<RETARGET_INTERVAL) return;
@@ -190,23 +201,27 @@ footer{margin:16px 0;color:#9aa0a6}
     S.bits=targetToCompact(newT);
   }
 
-  // ===== mining loop
   function mineBatch(){
     const prev=S.height?S.chain.at(-1).hash:GENESIS;
     const tgt=compactToTarget(S.bits), now=Math.floor(Date.now()/1000);
+
     for(let i=0;i<TRIES;i++){
       const nonce=randHex(8), salt=randHex(4), ctr=++S.ctr;
       const header=JSON.stringify({ver:1,prev,time:now,bits:S.bits,nonce,salt,ctr});
       const h=k256(header);
+
+      // уникальность
+      if(!remember(h)) { i--; continue; }
+
       const line=`${h} bits=0x${S.bits.toString(16)} nonce=${nonce} salt=${salt} ctr=${ctr} ← ${prev.slice(0,18)}…`;
+
       if(BigInt(h)<=tgt){
         const blk={idx:S.height+1,time:now,bits:S.bits,nonce,prev,hash:h};
         S.chain.push(blk); S.height=blk.idx; S.shares=(S.shares||0)+1;
-        pushLine(line,true);
-        $('msg').textContent=`Mined block #${blk.idx}`;
+        pushLine(line,true); $('msg').textContent=`Mined block #${blk.idx}`;
         if(S.height % RETARGET_INTERVAL===0) retarget();
         return;
-      }else{
+      } else {
         pushLine(line,false);
       }
     }
@@ -214,7 +229,7 @@ footer{margin:16px 0;color:#9aa0a6}
 
   function tick(){
     if(!S.running) return;
-    const now=Date.now(),dt=now-S.lastMs; if(dt<=0) return;
+    const now=Date.now(), dt=now-S.lastMs; if(dt<=0) return;
     S.accrued += BASE_RATE*BigInt(Math.floor(dt/1000));
     S.lastMs=now;
 
@@ -227,7 +242,7 @@ footer{margin:16px 0;color:#9aa0a6}
     mineBatch(); save(); render();
   }
 
-  // ===== actions
+  // actions
   async function doConnect(){
     try{
       const injected=(window.__bgb_provider||window.ethereum);
@@ -239,9 +254,9 @@ footer{margin:16px 0;color:#9aa0a6}
   }
   function start(){ if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; } S.running=true; S.lastMs=Date.now(); $('msg').textContent='Mining…'; }
   function stop(){ S.running=false; $('msg').textContent='Paused'; }
-  function toggleLog(){ const el=$('log'); el.style.display = (el.style.display==='none'?'block':'none'); }
+  function toggleLog(){ const el=$('log'); el.style.display=(el.style.display==='none'?'block':'none'); }
 
-  // ===== Claim (без подписи, сразу JSON)
+  // Claim (без подписи, сразу JSON)
   function requestPayout(){
     if(S.accrued<UNIT){ alert('Нужно минимум 300 BGB для запроса выплаты!'); return; }
     if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; }
