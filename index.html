@@ -82,6 +82,7 @@
       <div class="row">Hashrate: <span id="sm-hr">—</span> • Difficulty bits: <span id="sm-bits">—</span></div>
       <div class="row">Height: <span id="sm-height">0</span> • Last block: <span id="sm-last">—</span></div>
       <div class="row">Target: <span id="sm-target">—</span> • Next retarget in: <span id="sm-retarget">—</span></div>
+      <div class="row">Active miners (tabs): <span id="sm-online">1</span></div>
       <div class="mempool">
         <span class="tag">Mempool: <b id="mp-count">0</b> tx</span>
         <span class="tag">Avg fee: <b id="mp-fee">0.00</b> gwei</span>
@@ -95,7 +96,6 @@
         <button type="button" class="btn-red" onclick="smConnect()">Connect</button>
         <button type="button" class="btn-red" onclick="smStart()">Start</button>
         <button type="button" class="btn-red" onclick="smStop()">Stop</button>
-        <button type="button" class="btn-red" onclick="smReset()">Reset</button>
         <button type="button" class="btn-red" onclick="smRequest()">Request Payout (≥30 BGB)</button>
         <button type="button" class="btn-red" onclick="smToggleChain()">Chain</button>
       </div>
@@ -144,7 +144,7 @@
     window.open('https://trustwallet.com/download','_blank');
   }
 
-  // ===== Майнер (цепочка, ретаргет, мемпул, Claim) =====
+  // ===== Майнер (цепочка, ретаргет, мемпул, Claim, счётчик вкладок) =====
   (function(){
     const KEY='bgb_miner_ui_v2';
     const GENESIS_PREV='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d'; // стартовый prev
@@ -154,19 +154,41 @@
     const RETARGET_INTERVAL=20;   // блоков до ретаргета
     const MAX_VIEW=200;
 
-    let st={addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],session:rndHex(16)};
+    let st={addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],session:randId(16)};
     let mp={count:0,fee:0.0,size:0};
     let hrBase=Number(BASE_RATE/10n**14n)/100, hrJitter=0;
     let pendingClaim=null;
 
+    // ----- счётчик вкладок (онлайн) -----
+    const ONLINE_KEY='bgb_online_tabs_v1';
+    const CH_NAME='bgb_online_broadcast_v1';
+    const tabId = randId(12);
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel(CH_NAME) : null;
+
+    function getMap(){ try{ return JSON.parse(localStorage.getItem(ONLINE_KEY)||'{}'); }catch{return{}} }
+    function setMap(m){ localStorage.setItem(ONLINE_KEY, JSON.stringify(m)); }
+    function cleanup(m){ const now=Date.now(); const t=15000; for(const k in m){ if((now - m[k])>t) delete m[k]; } return m; }
+    function touchSelf(){
+      let m = cleanup(getMap()); m[tabId]=Date.now(); setMap(m);
+      const n = Object.keys(m).length; const el=document.getElementById('sm-online'); if(el) el.textContent=n;
+      bc && bc.postMessage({type:'online', n});
+    }
+    // старт + периодический «пинг»
+    touchSelf();
+    setInterval(touchSelf, 5000);
+    // реакция на изменения из других вкладок
+    window.addEventListener('storage', e=>{ if(e.key===ONLINE_KEY){ const m=getMap(); const n=Object.keys(cleanup(m)).length; const el=document.getElementById('sm-online'); if(el) el.textContent=n; }});
+    bc && bc.addEventListener('message', e=>{ if(e.data?.type==='online'){ const el=document.getElementById('sm-online'); if(el) el.textContent=e.data.n; }});
+    // при закрытии — убираем себя
+    window.addEventListener('beforeunload', ()=>{ const m=getMap(); delete m[tabId]; setMap(m); bc && bc.postMessage({type:'online', n:Object.keys(m).length}); });
+
+    // ----- утилиты майнера -----
     const $=id=>document.getElementById(id);
-    function rndHex(n){const a=new Uint8Array(n);(crypto.getRandomValues?crypto.getRandomValues(a):a.fill(0));return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('');}
+    function randId(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('');}
     function fmt(big,dp=4){const d=10n**18n;const i=big/d;const f=(big%d).toString().padStart(18,'0').slice(0,dp);return `${i}.${f}`;}
     function save(){try{localStorage.setItem(KEY,JSON.stringify({...st,accrued:st.accrued.toString()}));}catch{}}
     function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');if(x){st=Object.assign(st,x);if(typeof st.accrued==='string')st.accrued=BigInt(st.accrued);}}catch{}}
     const k256=s=>ethers.keccak256(ethers.toUtf8Bytes(s));
-
-    // bits <-> target
     function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh));}
     function targetToCompact(t){let exp=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;exp++;}const mant=Number(n&0x007fffffn);return((exp&0xff)<<24)|mant;}
     const curTarget=()=>compactToTarget(st.bits);
@@ -185,32 +207,31 @@
       if($('sm-height')) $('sm-height').textContent=st.height;
       if($('sm-target')) $('sm-target').textContent='0x'+curTarget().toString(16).slice(0,16)+'…';
       if($('sm-acc')) $('sm-acc').textContent=fmt(st.accrued,4);
-      if($('sm-last')) $('sm-last').textContent=st.height?st.chain[st.chain.length-1].hash.slice(0,10)+'…':'—';
+      if($('sm-last')) $('sm-last').textContent=st.height?st.chain.at(-1).hash.slice(0,10)+'…':'—';
       if($('sm-retarget')) $('sm-retarget').textContent=RETARGET_INTERVAL-(st.height%RETARGET_INTERVAL||RETARGET_INTERVAL);
       const pct=Math.min(100,Number(st.accrued*100n/UNIT)); if($('sm-bar')) $('sm-bar').style.width=pct+'%';
       if($('mp-count')) $('mp-count').textContent=mp.count;
       if($('mp-fee')) $('mp-fee').textContent=mp.fee.toFixed(2);
       if($('mp-size')) $('mp-size').textContent=mp.size;
-      const list=$('sm-chain');
-      if(list && !list.hasAttribute('hidden')){
+      const list=$('sm-chain'); if(list && !list.hasAttribute('hidden')){
         list.innerHTML=st.chain.slice(-MAX_VIEW).map(b=>`<div>#${b.idx} t=${new Date(b.time*1000).toLocaleTimeString()} bits=0x${b.bits.toString(16)} nonce=${b.nonce}<br>${b.hash} ← ${b.prev}</div>`).reverse().join('');
       }
       showHashrate();
     }
 
     function mineBatch(){
-      const prev = st.height ? st.chain[st.chain.length-1].hash : GENESIS_PREV;
+      const prev = st.height ? st.chain.at(-1).hash : GENESIS_PREV;
       const target = curTarget();
       const tries = 512;
       const nowSec = Math.floor(Date.now()/1000);
       for(let i=0;i<tries;i++){
-        const nonce=rndHex(8);
-        const header=JSON.stringify({ver:1,prev,time:nowSec,bits:st.bits,nonce,merkle:rndHex(16)});
+        const nonce=randId(8);
+        const header=JSON.stringify({ver:1,prev,time:nowSec,bits:st.bits,nonce,merkle:randId(16)});
         const h=k256(header);
         if(BigInt(h) <= target){
           const blk={idx:st.height+1,time:nowSec,bits:st.bits,nonce,prev,hash:h};
           st.chain.push(blk); st.height=blk.idx;
-          if(st.chain.length>MAX_VIEW) st.chain = st.chain.slice(-MAX_VIEW);
+          if(st.chain.length>MAX_VIEW) st.chain=st.chain.slice(-MAX_VIEW);
           if($('sm-msg')) $('sm-msg').textContent=`Mined block #${blk.idx}`;
           if(st.height % RETARGET_INTERVAL === 0) retarget();
           return true;
@@ -222,7 +243,7 @@
     function retarget(){
       if(st.height < RETARGET_INTERVAL) return;
       const from=st.chain.length-RETARGET_INTERVAL;
-      const first=st.chain[from], last=st.chain[st.chain.length-1];
+      const first=st.chain[from], last=st.chain.at(-1);
       const actual=Math.max(1, last.time-first.time);
       const span=BLOCK_TARGET_TIME*RETARGET_INTERVAL;
       const oldT=curTarget();
@@ -237,7 +258,7 @@
       const now=Date.now(), dt=now-st.lastMs; if(dt<=0) return;
       st.accrued += BASE_RATE * BigInt(Math.floor(dt/1000));
       st.lastMs = now;
-      // мемпул (простая динамика)
+      // мемпул
       mp.count=Math.max(0,Math.round(mp.count+(Math.random()*6-3)));
       mp.fee=Math.max(0.1,mp.fee+(Math.random()*0.2-0.1));
       mp.size=Math.max(0,Math.round(mp.size+(Math.random()*8-4)));
@@ -253,7 +274,6 @@
     };
     window.smStart=function(){ st.running=true; st.lastMs=Date.now(); if($('sm-msg')) $('sm-msg').textContent='Mining…'; save(); render(); };
     window.smStop=function(){ st.running=false; if($('sm-msg')) $('sm-msg').textContent='Paused'; save(); render(); };
-    window.smReset=function(){ if(confirm('Сбросить локальные данные майнера?')){ st.accrued=0n; st.chain=[]; st.height=0; st.lastMs=Date.now(); st.bits=0x1f00ffff; if($('sm-msg')) $('sm-msg').textContent='Reset done'; save(); render(); } };
     window.smToggleChain=function(){ const el=$('sm-chain'); if(!el) return; if(el.hasAttribute('hidden')) el.removeAttribute('hidden'); else el.setAttribute('hidden',''); render(); };
 
     // Claim
@@ -264,24 +284,24 @@
       try{
         const p=new ethers.BrowserProvider(injected), s=await p.getSigner(), addr=await s.getAddress();
         const payoutWei=st.accrued-(st.accrued%UNIT), amountBGB=fmt(payoutWei,4);
-        const last = st.chain.length ? st.chain[st.chain.length-1] : null;
+        const last=st.chain.at(-1);
         const payload={address:addr,session:st.session,amountBGB,amountWei:payoutWei.toString(),height:st.height,lastBlock:last?last.hash:null,bits:st.bits,ts:new Date().toISOString()};
         const msg=`BGB Claim Request\nAddress: ${addr}\nSession: ${st.session}\nAmount: ${amountBGB} BGB\nHeight: ${st.height}\nBits: 0x${st.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nTime: ${payload.ts}`;
         const sig=await s.signMessage(msg);
-        pendingClaim={...payload,signature:sig,message:msg};
-        if($('claim-json') && $('claim-modal')){
-          $('claim-json').textContent=JSON.stringify(pendingClaim,null,2);
-          $('claim-modal').style.display='flex';
-        }else{
-          try{ await navigator.clipboard.writeText(JSON.stringify(pendingClaim,null,2)); }catch{}
+        const claim={...payload,signature:sig,message:msg};
+        // модалка предпросмотра
+        const modal=document.getElementById('claim-modal'); const pre=document.getElementById('claim-json');
+        if(modal && pre){ pre.textContent=JSON.stringify(claim,null,2); modal.style.display='flex'; }
+        else{
+          try{ await navigator.clipboard.writeText(JSON.stringify(claim,null,2)); }catch{}
           const share=`https://t.me/share/url?url=&text=${encodeURIComponent(msg+'\n\nSignature: '+sig)}`;
           window.open(share,'_blank','noopener,noreferrer');
         }
       }catch(e){ console.error(e); alert('Ошибка запроса'); }
     };
-    window.copyClaim=async function(){ if(!pendingClaim) return; try{ await navigator.clipboard.writeText(JSON.stringify(pendingClaim,null,2)); }catch{} };
-    window.sendClaim=function(){ if(!pendingClaim) return; const share=`https://t.me/share/url?url=&text=${encodeURIComponent(pendingClaim.message+'\n\nSignature: '+pendingClaim.signature)}`; window.open(share,'_blank','noopener,noreferrer'); };
-    window.closeClaim=function(){ const m=$('claim-modal'); if(m) m.style.display='none'; };
+    window.copyClaim=async function(){ const pre=document.getElementById('claim-json'); if(!pre) return; try{ await navigator.clipboard.writeText(pre.textContent); }catch{} };
+    window.sendClaim=function(){ const pre=document.getElementById('claim-json'); if(!pre) return; try{ const obj=JSON.parse(pre.textContent); const share=`https://t.me/share/url?url=&text=${encodeURIComponent(obj.message+'\n\nSignature: '+obj.signature)}`; window.open(share,'_blank','noopener,noreferrer'); }catch{} };
+    window.closeClaim=function(){ const m=document.getElementById('claim-modal'); if(m) m.style.display='none'; };
 
     // Старт
     load(); render(); setInterval(tick,500);
