@@ -1,1 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGB Token Miner</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: url("images/background.jpg") no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 50px auto;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 15px;
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.7);
+        }
+
+        header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            color: #ff4444;
+        }
+
+        header p {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: #ff0000;
+            color: white;
+            padding: 12px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #cc0000;
+        }
+
+        .output {
+            background-color: black;
+            color: #00ff00;
+            padding: 10px;
+            height: 180px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            text-align: left;
+        }
+
+        .info {
+            margin: 10px 0;
+            font-size: 15px;
+        }
+
+        .red {
+            background-color: #ff4444;
+        }
+
+        .red:hover {
+            background-color: #cc0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BGB Token Miner</h1>
+            <p>Майнь BGB, копи и выводи свои токены!</p>
+        </header>
+
+        <!-- Подключение кошелька -->
+        <div class="wallet-box">
+            <button id="connectWallet" class="btn">🔗 Подключить MetaMask / TrustWallet</button>
+            <p id="walletAddress" class="info">Кошелёк: —</p>
+            <p id="balance" class="info">Баланс: 0 BGB</p>
+        </div>
+
+        <!-- Майнинг -->
+        <div class="mining-box">
+            <button id="startMining" class="btn">🚀 Запустить майнинг</button>
+            <div id="miningOutput" class="output"></div>
+            <p id="minedAmount" class="info">Намайнено: 0 BGB</p>
+            <button id="withdraw" class="btn red" disabled>💸 Вывести токены</button>
+        </div>
+    </div>
+
+    <script>
+        const contractAddress = "0xFeF80dbC16251862b82286864D77aFA08ECBcb5C";
+        const contractABI = [
+            {
+                "constant": true,
+                "inputs": [{"name":"_owner","type":"address"}],
+                "name": "balanceOf",
+                "outputs": [{"name":"balance","type":"uint256"}],
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    {"name":"recipient","type":"address"},
+                    {"name":"amount","type":"uint256"}
+                ],
+                "name": "transfer",
+                "outputs": [{"name":"","type":"bool"}],
+                "type": "function"
+            }
+        ];
+
+        let web3;
+        let contract;
+        let account;
+        let minedTokens = 0;
+
+        async function connectWallet() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                try {
+                    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+                    account = accounts[0];
+                    document.getElementById("walletAddress").innerText = `Кошелёк: ${account}`;
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    updateBalance();
+                } catch (error) {
+                    alert("Ошибка подключения кошелька");
+                }
+            } else {
+                alert("Установите MetaMask или TrustWallet!");
+            }
+        }
+
+        async function updateBalance() {
+            try {
+                const balance = await contract.methods.balanceOf(account).call();
+                document.getElementById("balance").innerText = `Баланс: ${web3.utils.fromWei(balance, "ether")} BGB`;
+            } catch (err) {
+                document.getElementById("balance").innerText = "Баланс: 0 BGB";
+            }
+        }
+
+        function startMining() {
+            const output = document.getElementById("miningOutput");
+            minedTokens = 0;
+            output.innerHTML = "";
+
+            const interval = setInterval(() => {
+                const hash = Math.random().toString(16).substring(2, 18);
+                output.innerHTML += `<div>⛏️ Хэш: ${hash}</div>`;
+                output.scrollTop = output.scrollHeight;
+
+                minedTokens += 0.5; 
+                document.getElementById("minedAmount").innerText = `Намайнено: ${minedTokens.toFixed(2)} BGB`;
+
+                if (minedTokens >= 30) {
+                    clearInterval(interval);
+                    document.getElementById("withdraw").disabled = false;
+                }
+            }, 700);
+        }
+
+        async function withdrawTokens() {
+            if (minedTokens < 30) {
+                alert("Минимум 30 BGB для вывода!");
+                return;
+            }
+            try {
+                await contract.methods.transfer(account, web3.utils.toWei(minedTokens.toString(), "ether"))
+                    .send({ from: account });
+                alert(`Выведено ${minedTokens} BGB!`);
+                minedTokens = 0;
+                updateBalance();
+            } catch (error) {
+                alert("Ошибка вывода токенов!");
+            }
+        }
+
+        document.getElementById("connectWallet").addEventListener("click", connectWallet);
+        document.getElementById("startMining").addEventListener("click", startMining);
+        document.getElementById("withdraw").addEventListener("click", withdrawTokens);
+    </script>
+</body>
+</html>
 
