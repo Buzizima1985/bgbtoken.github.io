@@ -1,1 +1,289 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BGB Miner • On‑chain PoW claim</title>
+<link rel="icon" href="logo.png"/>
+
+<style>
+:root{--accent:#e60000;--accent2:#cc0000;--ok:#00ff88;--warn:#f59e0b;--muted:#9aa0a6}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0b0f14;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
+.overlay{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:22px 14px;gap:12px}
+
+h1{font-weight:800;font-size:44px;background:linear-gradient(90deg,#ff7a00,#ff3b3b);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{color:#eaeaea}
+
+.buttons{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.btn{padding:12px 20px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;
+  box-shadow:0 0 10px #e60000;cursor:pointer;text-decoration:none;display:inline-flex;gap:8px;align-items:center}
+.btn:hover{background:var(--accent2);transform:translateY(-1px)}
+.btn:focus-visible{outline:3px solid #fff3;outline-offset:2px}
+
+.card{width:100%;max-width:980px;background:#101418;border:1px solid #1f2531;border-radius:18px;
+  padding:16px 18px;box-shadow:0 4px 30px rgba(0,0,0,.35)}
+.hdr{font-weight:800;font-size:20px;margin-bottom:6px}
+
+.row{font-size:14px;margin:2px 0;opacity:.95}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.tag{background:#131a23;border:1px solid #263040;color:#cbd5e1;padding:4px 8px;border-radius:999px;font-size:12px}
+.tag.ok{border-color:var(--ok);color:var(--ok)}
+
+.acc{font-size:20px;margin:6px 0}
+.bar{height:8px;background:#ffffff22;border-radius:999px;overflow:hidden}
+#bar{height:100%;width:0%;background:var(--ok);transition:width .3s}
+
+.btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
+.btn-red{padding:10px 18px;font-size:15px;border-radius:10px;background:var(--accent);color:#fff;border:none;
+  box-shadow:0 0 10px #e60000;cursor:pointer}
+.btn-red:hover{background:var(--accent2);transform:scale(1.05)}
+.btn-red:focus-visible{outline:3px solid #fff3;outline-offset:2px}
+
+.list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:260px;overflow:auto;
+  background:#0b0f14;border:1px solid #223043;border-radius:12px;padding:10px;margin-top:8px}
+.list .ok{color:var(--ok)}
+.list .try{color:#e5e7eb}
+.list .sys{color:#9aa0a6}
+
+footer{margin:16px 0;color:#9aa0a6}
+
+/* Sticky wallet dock */
+.dock{position:fixed;left:0;right:0;bottom:0;background:#0c1117;border-top:1px solid #1f2531;
+  display:flex;justify-content:center;padding:8px 12px;z-index:60}
+.dock .dock-inner{width:100%;max-width:980px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.dock .pill{background:#131a23;border:1px solid #263040;color:#cbd5e1;padding:6px 10px;border-radius:999px;font-size:12px}
+
+</style>
+</head>
+<body>
+  <div class="overlay">
+    <h1>BGB Miner</h1>
+    <div class="subtitle" aria-live="polite">Браузерный PoW‑майнер с ончейн‑подтверждением (submit в смарт‑контракт).</div>
+
+    <div class="buttons">
+      <a class="btn" href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">📄 Token (BSCScan)</a>
+      <button class="btn" onclick="openInMetaMask()" aria-label="Open in MetaMask Mobile">🦊 MetaMask</button>
+      <button class="btn" onclick="openInTrust()" aria-label="Open in Trust Wallet">📱 Trust</button>
+      <button class="btn" onclick="doConnect()">🪙 Connect Wallet</button>
+    </div>
+
+    <div class="card" aria-live="polite">
+      <div class="hdr">Mining</div>
+
+      <div class="row">Wallet: <span id="w">—</span></div>
+      <div class="row">Hashrate: <span id="hr">—</span> • Difficulty bits: <span id="bits">—</span></div>
+      <div class="row">Height (onchain): <span id="h">0</span> • Last hash: <span id="last">—</span></div>
+      <div class="row">Target: <span id="tgt">—</span></div>
+
+      <div class="tags">
+        <span class="tag">Active tabs: <b id="tabs">1</b></span>
+        <span class="tag ok">Accepted: <b id="accp">0</b></span>
+        <span class="tag">Reward: <b id="rw">—</b></span>
+      </div>
+
+      <div class="acc">Balance: <span id="acc">0.0000</span> <span id="sym">BGB</span></div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div id="bar"></div>
+      </div>
+      <div class="row" id="msg">Status: ready</div>
+
+      <div id="log" class="list" role="log" aria-live="polite" aria-relevant="additions"></div>
+
+      <div class="btns">
+        <button class="btn-red" onclick="doConnect()">Connect</button>
+        <button class="btn-red" onclick="start()">Start</button>
+        <button class="btn-red" onclick="stop()">Stop</button>
+        <button class="btn-red" onclick="toggleLog()">Toggle Log</button>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:980px">
+      <div class="row">Token (BSC): <code id="tokenAddr">—</code></div>
+      <div class="row">Minter contract: <code id="minterAddr">—</code></div>
+    </div>
+
+    <footer>© 2025 BGB Miner</footer>
+  </div>
+
+  <!-- Sticky wallet dock -->
+  <div class="dock" role="contentinfo">
+    <div class="dock-inner">
+      <div class="pill">Connected: <b id="dock_addr">—</b></div>
+      <div class="pill">Chain: <b id="dock_chain">—</b></div>
+      <div class="pill">Token balance: <b id="dock_bal">—</b></div>
+    </div>
+  </div>
+
+  <!-- Ethers -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+
+  <script>
+  // ====== CONFIG (ЗАПОЛНИ перед использованием)
+  const TOKEN_ADDRESS  = '0xFeF80dbC16251862b82286864D77aFA08ECBcb5C'; // ваш BEP-20 токен
+  const MINTER_ADDRESS = '0x0000000000000000000000000000000000000000'; // адрес смарт-контракта PoW‑minter (заполнить)
+  const BSC_CHAIN_ID   = 56; // BNB Smart Chain mainnet
+
+  // ====== ABIs
+  const ERC20_ABI = [
+    {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}
+  ];
+  const MINER_ABI = [
+    {"inputs":[{"internalType":"address","name":"token_","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"miner","type":"address"},{"indexed":false,"internalType":"bytes32","name":"hash","type":"bytes32"},{"indexed":false,"internalType":"uint32","name":"bits","type":"uint32"},{"indexed":false,"internalType":"uint256","name":"index","type":"uint256"}],"name":"Accepted","type":"event"},
+    {"inputs":[],"name":"bits","outputs":[{"internalType":"uint32","name":"","type":"uint32"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"index","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"lastHash","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"reward","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"bytes32","name":"nonce","type":"bytes32"},{"internalType":"bytes32","name":"salt","type":"bytes32"}],"name":"submit","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"token","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+  ];
+
+  // ====== helpers
+  const $=id=>document.getElementById(id);
+  const k256=s=>ethers.keccak256(ethers.toUtf8Bytes(s));
+  function randHex(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
+  function fmt(x,dec=18,dp=4){const d=10n**BigInt(dec);const i=x/d;const f=(x%d).toString().padStart(Number(dec),'0').slice(0,dp);return `${i}.${f}`}
+  function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
+
+  // ====== state
+  let provider, signer, user, chainId;
+  let token, miner;
+  let tokenDecimals=18, tokenSymbol='BGB';
+  let S={running:false,bits:0x1f00ffff,lastHash:'0x'+'00'.repeat(32),index:0,reward:0n,accepted:0};
+
+  const HR_UI=5.0, TRIES=256, LOG_MAX=600, VIEW_MAX=260;
+  const seen=new Set(); const queue=[];
+  function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>4000){ const old=queue.shift(); seen.delete(old); } return true; }
+
+  function pushLine(html,cls){ const el=$('log'); const node=document.createElement('div'); node.className=cls||'try'; node.textContent=html; el.prepend(node); while(el.childElementCount>VIEW_MAX){ el.removeChild(el.lastChild); } }
+
+  function renderBasics(){
+    $('w').textContent = user? user.slice(0,6)+'…'+user.slice(-4) : '—';
+    $('bits').textContent = '0x'+S.bits.toString(16);
+    $('h').textContent = String(S.index);
+    $('last').textContent = S.index? (S.lastHash.slice(0,10)+'…') : '—';
+    const tgt=compactToTarget(S.bits); $('tgt').textContent='0x'+tgt.toString(16).slice(0,16)+'…';
+    $('rw').textContent = `${fmt(S.reward, tokenDecimals, 4)} ${tokenSymbol}`;
+    $('sym').textContent = tokenSymbol;
+    $('tokenAddr').textContent = TOKEN_ADDRESS;
+    $('minterAddr').textContent = MINTER_ADDRESS;
+    $('dock_addr').textContent = user? user.slice(0,10)+'…'+user.slice(-4) : '—';
+    $('dock_chain').textContent = chainId? String(chainId) : '—';
+  }
+
+  function setHashrateUI(){
+    let hrJ=(Math.random()-0.5)*0.25; const hr=Math.max(0,HR_UI*(1+hrJ/10)).toFixed(2); $('hr').textContent=`${hr} H/s`;
+  }
+
+  async function refreshOnchain(){
+    if(!miner) return;
+    S.bits = await miner.bits();
+    S.index = Number(await miner.index());
+    S.lastHash = await miner.lastHash();
+    S.reward = BigInt(await miner.reward());
+    renderBasics();
+  }
+
+  async function refreshBalance(){
+    if(!token||!user) return; const v=await token.balanceOf(user); $('acc').textContent = fmt(BigInt(v), tokenDecimals, 4); }
+
+  // ====== mining
+  function solidityPackedHeader(lastHash,bits,minerAddr,nonce,salt,nextIndex){
+    // types: uint8 ver=1, bytes32 lastHash, uint32 bits, address miner, bytes32 nonce, bytes32 salt, uint256 nextIndex
+    return ethers.solidityPackedKeccak256(
+      ['uint8','bytes32','uint32','address','bytes32','bytes32','uint256'],
+      [1,lastHash,bits,minerAddr,nonce,salt,nextIndex]
+    );
+  }
+
+  async function mineBatch(){
+    if(!S.running || !user) return;
+    const tgt=compactToTarget(S.bits);
+    const nextIndex = BigInt(S.index + 1);
+
+    for(let i=0;i<TRIES;i++){
+      const nonce='0x'+randHex(32);
+      const salt ='0x'+randHex(32);
+      const h = solidityPackedHeader(S.lastHash, S.bits, user, nonce, salt, nextIndex);
+      if(!remember(h)) { i--; continue; }
+      if(BigInt(h) <= tgt){
+        pushLine(`FOUND: ${h.slice(0,18)}… idx=${S.index+1} bits=0x${S.bits.toString(16)}`,'ok');
+        try{
+          $('msg').textContent='Submitting… confirm tx in wallet';
+          const tx = await miner.submit(nonce, salt);
+          pushLine(`TX: ${tx.hash.slice(0,14)}… waiting`, 'sys');
+          const rcpt = await tx.wait();
+          S.accepted++; $('accp').textContent=String(S.accepted);
+          $('msg').textContent='Accepted on-chain';
+          await refreshOnchain(); await refreshBalance();
+        }catch(e){ console.error(e); pushLine('Submit failed','sys'); $('msg').textContent='Submit failed'; }
+        return; // один сабмит за батч
+      } else {
+        pushLine(`${h} bits=0x${S.bits.toString(16)}`,'try');
+      }
+    }
+  }
+
+  function loop(){ if(S.running){ setHashrateUI(); mineBatch(); } requestAnimationFrame(loop); }
+
+  // ====== actions
+  async function doConnect(){
+    try{
+      const injected=(window.__bgb_provider||window.ethereum);
+      if(!injected){ alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.'); return; }
+      provider = new ethers.BrowserProvider(injected);
+      await injected.request({method:'eth_requestAccounts'});
+      signer = await provider.getSigner();
+      user = await signer.getAddress();
+      const net = await provider.getNetwork(); chainId = Number(net.chainId);
+
+      token = new ethers.Contract(TOKEN_ADDRESS, ERC20_ABI, provider);
+      let sym = 'BGB', dec=18;
+      try{ sym = await token.symbol(); }catch{}
+      try{ dec = await token.decimals(); }catch{}
+      tokenSymbol = sym || tokenSymbol; tokenDecimals = dec || tokenDecimals;
+      $('sym').textContent = tokenSymbol;
+
+      if (MINTER_ADDRESS && MINTER_ADDRESS !== '0x0000000000000000000000000000000000000000'){
+        miner = new ethers.Contract(MINTER_ADDRESS, MINER_ABI, signer);
+      } else {
+        miner = null; alert('Укажи адрес смарт‑контракта MINTER_ADDRESS в коде.');
+      }
+
+      renderBasics(); await refreshOnchain(); await refreshBalance();
+      $('msg').textContent='Wallet connected';
+    }catch(e){ console.error(e); alert('Не удалось подключить кошелёк'); }
+  }
+
+  function start(){
+    if(!user){ alert('Подключите кошелёк'); return; }
+    if(!miner){ alert('Не задан адрес контракта MINTER_ADDRESS'); return; }
+    S.running=true; $('msg').textContent='Mining…';
+  }
+  function stop(){ S.running=false; $('msg').textContent='Paused'; }
+  function toggleLog(){ const el=$('log'); el.style.display=(el.style.display==='none'?'block':'none'); }
+
+  // deep links
+  function openInMetaMask(){ const dapp = location.href.replace(/^https?:\/\//,''); window.location.href = 'https://metamask.app.link/dapp/'+ dapp; }
+  function openInTrust(){ const dappUrl = encodeURIComponent(location.href); window.location.href = `https://link.trustwallet.com/open_url?source=dapp&url=${dappUrl}`; }
+  window.openInMetaMask=openInMetaMask; window.openInTrust=openInTrust;
+  window.doConnect=doConnect; window.start=start; window.stop=stop; window.toggleLog=toggleLog;
+
+  // ====== boot
+  renderBasics();
+  pushLine('Log (white = try, green = accepted)','sys');
+  loop();
+
+  // tabs heartbeat for Active tabs counter
+  const TAB_PREFIX='BGB_TAB_'; const TAB_ID=(()=>{const a=new Uint8Array(6);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')})();
+  function heartbeat(){ try{ localStorage.setItem(TAB_PREFIX+TAB_ID, String(Date.now())); }catch{} }
+  function countTabs(){ try{ const now=Date.now(), ttl=9000; let n=0; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.startsWith(TAB_PREFIX)){ const t=Number(localStorage.getItem(k)); if(now - t < ttl) n++; } } $('tabs').textContent=n||1; }catch{ $('tabs').textContent='1'; } }
+  setInterval(()=>{ heartbeat(); countTabs(); }, 3000); heartbeat(); countTabs();
+  </script>
+</body>
+</html>
 
