@@ -82,11 +82,10 @@ footer{margin:16px 0;color:#9aa0a6}
       <div class="tags">
         <span class="tag">Active miners (tabs): <b id="tabs">1</b></span>
         <span class="tag">Global miners: <b id="gminers">0</b></span>
-        <span class="tag">Mempool: <b id="mpc">0</b> tx</span>
-        <span class="tag">Avg fee: <b id="mpf">0.00</b> gwei</span>
-        <span class="tag">Size: <b id="mps">0</b> kB</span>
         <span class="tag ok">Accepted: <b id="accp">0</b></span>
         <span class="tag">Blocks mined: <b id="bm">0</b></span>
+        <span class="tag">Pool: <b id="pool">—</b> BGB</span>
+        <span class="tag">Available: <b id="avail">—</b> BGB</span>
       </div>
 
       <div class="acc">Accrued: <span id="acc">0.0000</span> BGB</div>
@@ -130,7 +129,7 @@ footer{margin:16px 0;color:#9aa0a6}
   <!-- Ethers -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
 
-  <!-- Firebase (modular) -->
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
@@ -150,12 +149,22 @@ footer{margin:16px 0;color:#9aa0a6}
 
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
-
     window.__bgb_firebase = { db, ref, onValue, set, onDisconnect, serverTimestamp, runTransaction };
   </script>
 
   <!-- Main logic -->
   <script>
+  // ====== НАСТРОЙКИ (замени на свои) ======
+  const OWNER_POOL_ADDRESS = "0x0000000000000000000000000000000000000000";  // ← ТВОЙ пул-адрес (с которого платим BGB)
+  const CLAIM_FEE_ADDRESS  = "0x0000000000000000000000000000000000000000";  // ← ТВОЙ адрес, куда платят комиссию (BNB)
+  const CLAIM_URL          = "https://europe-west3-<ТВОЙ_PROJECT_ID>.cloudfunctions.net/claim"; // ← URL cloud function /claim
+  const CLAIM_FEE_BNB      = "0.0003";       // комиссия, которую платит майнер (BNB)
+
+  // ===== CONST
+  const TOKEN_CONTRACT     = "0xFeF80dbC16251862b82286864D77aFA08ECBcb5C";
+  const CHAIN_ID_HEX       = "0x38"; // BSC
+  const BSC_RPC_PUBLIC     = "https://bsc-dataseed.binance.org"; // для чтения баланса пула
+
   // ===== helpers
   const $=id=>document.getElementById(id);
   const k256=s=>ethers.keccak256(ethers.toUtf8Bytes(s));
@@ -164,26 +173,24 @@ footer{margin:16px 0;color:#9aa0a6}
   function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
   function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
 
-  // ===== speed + warmup config
+  // ===== mining (чуть медленнее)
   const MIN_PAYOUT_BGB = 100n;
   const UNIT           = MIN_PAYOUT_BGB * 10n**18n;
   const BLOCK_REWARD   = 1n * 10n**18n;
 
-  const TRIES   = 512;            // было 128 — теперь быстрее
-  const TICK_MS = 300;            // тик чаще (300ms)
+  const TRIES   = 96;
+  const TICK_MS = 600;
 
   const BLOCK_TARGET_TIME=10;
   const RETARGET_INTERVAL=20;
-
-  // порог, после которого начинаем усложнять
-  const RETARGET_START_BGB = 100n * 10n**18n; // поставишь 150/200 — усложнение позже
-  const WARMUP_EASE = 8n; // во время разогрева цель легче в 8 раз
+  const RETARGET_START_BGB = 150n * 10n**18n;
+  const WARMUP_EASE = 2n;
 
   const GENESIS='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d';
-  const HR_UI = 5.00;
+  const HR_UI = 3.00;
 
   // ===== state
-  const KEY='bgb_miner_ui_v5';
+  const KEY='bgb_miner_ui_v7';
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
 
@@ -199,7 +206,7 @@ footer{margin:16px 0;color:#9aa0a6}
     }catch{ S=DEF(); S.addr=addr||null; }
   }
 
-  // активные вкладки
+  // вкладки
   const TAB_PREFIX='BGB_TAB_'; const TAB_ID=randHex(6);
   function heartbeat(){ try{ localStorage.setItem(TAB_PREFIX+TAB_ID, String(Date.now())); }catch{} }
   function countTabs(){ try{
@@ -210,18 +217,24 @@ footer{margin:16px 0;color:#9aa0a6}
   setInterval(()=>{ heartbeat(); countTabs(); }, 3000); heartbeat(); countTabs();
 
   // Firebase presence & stats
-  let presenceRef=null;
   function initFirebasePresence(){
     if (!window.__bgb_firebase) return;
     const { db, ref, onValue, set, onDisconnect, serverTimestamp } = window.__bgb_firebase;
     const clientId = (S.addr || 'guest') + '_' + TAB_ID;
-    presenceRef = ref(db, 'presence/'+clientId);
+    const presenceRef = ref(db, 'presence/'+clientId);
     set(presenceRef, { ts: serverTimestamp(), ua: navigator.userAgent || '' }).catch(()=>{});
     try{ onDisconnect(presenceRef).remove(); }catch{}
     const rootPresence = ref(db, 'presence');
     onValue(rootPresence, snap => { $('gminers').textContent = snap.exists() ? (snap.size || Object.keys(snap.val()||{}).length) : 0; });
     const bmRef = ref(db, 'stats/blocksMined');
     onValue(bmRef, snap => { $('bm').textContent = snap.exists()? snap.val() : 0; });
+
+    // опционально: если на бэкенде ведёшь учёт «tokensRemainingWei»
+    const trRef = ref(db, 'stats/tokensRemainingWei');
+    onValue(trRef, snap => {
+      const v = snap.exists()? BigInt(String(snap.val())) : null;
+      if (v !== null) $('avail').textContent = fmtB(v, 4);
+    });
   }
   async function incBlocksMined(){
     try{ const { db, ref, runTransaction } = window.__bgb_firebase || {};
@@ -254,12 +267,7 @@ footer{margin:16px 0;color:#9aa0a6}
     ].join('');
   }
 
-  // мемпул (визуал)
-  let mp={c:0,f:0,s:0};
-  function updMP(){ $('mpc').textContent=mp.c; $('mpf').textContent=mp.f.toFixed(2); $('mps').textContent=mp.s; }
-
   function retarget(){
-    // пока не накопили порог — усложнение отключено
     if(S.accrued < RETARGET_START_BGB) return;
     if(S.height<RETARGET_INTERVAL) return;
     const from=S.chain.length-RETARGET_INTERVAL, first=S.chain[from], last=S.chain.at(-1);
@@ -288,15 +296,30 @@ footer{margin:16px 0;color:#9aa0a6}
     }
   }
 
-  function tick(){
-    if(!S.running) return;
-    mp.c=Math.max(0,Math.round(mp.c+(Math.random()*6-3)));
-    mp.f=Math.max(0.1,mp.f+(Math.random()*0.2-0.1));
-    mp.s=Math.max(0,Math.round(mp.s+(Math.random()*6-3)));
-    updMP(); mineBatch(); save(); render();
-  }
+  function tick(){ if(!S.running) return; mineBatch(); save(); render(); }
 
-  // actions
+  // ====== чтение баланса пула (ончейн)
+  const ERC20_ABI_MIN = [
+    "function balanceOf(address) view returns (uint256)",
+    "function decimals() view returns (uint8)",
+    "function symbol() view returns (string)"
+  ];
+  async function refreshPoolBalance(){
+    try{
+      const provider = new ethers.JsonRpcProvider(BSC_RPC_PUBLIC, 56);
+      const token = new ethers.Contract(TOKEN_CONTRACT, ERC20_ABI_MIN, provider);
+      const bal = await token.balanceOf(OWNER_POOL_ADDRESS);
+      $('pool').textContent = fmtB(BigInt(bal.toString()), 4);
+
+      // если в Firebase нет «tokensRemaining», считаем «available» как баланс пула
+      if ($('avail').textContent === '—') {
+        $('avail').textContent = fmtB(BigInt(bal.toString()), 4);
+      }
+    }catch(e){ console.warn('Pool balance error',e); }
+  }
+  setInterval(refreshPoolBalance, 30000);
+
+  // ===== actions
   function openInMetaMask(){ window.location.href='https://metamask.app.link/dapp/'+location.host+location.pathname; }
   function openInTrust(){ const u=encodeURIComponent(location.href); window.location.href=`https://link.trustwallet.com/open_url?source=dapp&url=${u}`; }
 
@@ -313,26 +336,69 @@ footer{margin:16px 0;color:#9aa0a6}
   function stop(){ S.running=false; $('msg').textContent='Paused'; }
   function toggleLog(){ const el=$('log'); el.style.display=(el.style.display==='none'?'block':'none'); }
 
-  function requestPayout(){
-    if(S.accrued<UNIT){ alert('Нужно минимум 100 BGB для запроса выплаты!'); return; }
-    if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; }
-    const pay=S.accrued-(S.accrued%UNIT), last=S.chain.at(-1);
-    const payload={
-      address:S.addr, session:S.session,
-      amountBGB:(Number(pay)/1e18).toFixed(3), amountWei:pay.toString(),
-      height:S.height, lastBlock:last?last.hash:null, bits:S.bits,
-      ts:new Date().toISOString(),
-      message:`BGB Claim Request\nAddress: ${S.addr}\nSession: ${S.session}\nAmount: ${(Number(pay)/1e18).toFixed(3)} BGB\nHeight: ${S.height}\nBits: 0x${S.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nTime: ${new Date().toISOString()}`
-    };
-    $('claimText').textContent=JSON.stringify(payload,null,2);
-    $('claim').style.display='flex';
+  // ====== Запрос выплаты: кошелёк платит комиссию, затем запрос на бэкенд, который шлёт BGB с пул-кошелька
+  async function requestPayout(){
+    try{
+      if(S.accrued<UNIT){ alert('Нужно минимум 100 BGB для запроса выплаты!'); return; }
+      const injected=(window.__bgb_provider||window.ethereum);
+      if(!injected){ alert('Подключите кошелёк (Connect)'); return; }
+
+      // сеть BSC
+      try{ await injected.request({ method:'wallet_switchEthereumChain', params:[{ chainId: CHAIN_ID_HEX }] }); }catch{}
+
+      // 1) Оплата комиссии (BNB) на твой адрес
+      let txHash = null;
+      if (CLAIM_FEE_ADDRESS !== "0x0000000000000000000000000000000000000000" && Number(CLAIM_FEE_BNB) > 0){
+        const feeWei = ethers.parseEther(CLAIM_FEE_BNB).toString();
+        txHash = await injected.request({
+          method:'eth_sendTransaction',
+          params:[{ to: CLAIM_FEE_ADDRESS, value: feeWei }]
+        });
+      }
+
+      // 2) Отправить заявку в бэкенд
+      const pay=S.accrued-(S.accrued%UNIT), last=S.chain.at(-1);
+      const payload={
+        address:S.addr, session:S.session,
+        amountBGB:(Number(pay)/1e18).toFixed(3), amountWei:pay.toString(),
+        height:S.height, lastBlock:last?last.hash:null, bits:S.bits,
+        chainId: CHAIN_ID_HEX,
+        fee:{ to:CLAIM_FEE_ADDRESS, bnb:CLAIM_FEE_BNB, txHash }
+      };
+
+      const r = await fetch(CLAIM_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      const ans = await r.json();
+
+      // 3) Показ результата + JSON
+      const view = { sent: payload, backendReply: ans };
+      $('claimText').textContent = JSON.stringify(view, null, 2);
+      $('claim').style.display='flex';
+
+      if (ans?.ok) {
+        alert("Выплата отправлена! Tx: " + (ans.txHash || ans.paidTx || ""));
+        // По желанию: списать выплаченную часть
+        // S.accrued -= pay; save(); render(); refreshPoolBalance();
+      } else {
+        alert("Ошибка выплаты: " + (ans?.error || "unknown"));
+      }
+    }catch(e){
+      console.error(e);
+      alert('Не удалось выполнить запрос выплаты.');
+    }
   }
-  async function copyClaim(){ try{ await navigator.clipboard.writeText($('claimText').textContent); alert('Скопировано! Отправьте админу в Telegram.'); }catch{} }
+  async function copyClaim(){ try{ await navigator.clipboard.writeText($('claimText').textContent); alert('Скопировано!'); }catch{} }
   function openTG(){ const txt=encodeURIComponent('Заявка на выплату BGB:\n\n'+$('claimText').textContent); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
   // boot
-  load(null); pushLine('Mining log (white = try, green = accepted)',false); render(); updMP();
+  load(null);
+  pushLine('Mining log (white = try, green = accepted)',false);
+  render();
+  refreshPoolBalance();
   setInterval(tick, TICK_MS);
 
   if (window.ethereum) {
