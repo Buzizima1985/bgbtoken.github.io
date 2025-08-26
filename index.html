@@ -44,12 +44,12 @@ h1{font-weight:800;font-size:44px;background:linear-gradient(90deg,#ff7a00,#ff3b
 
 footer{margin:16px 0;color:#9aa0a6}
 
-/* Claim modal */
+/* Modal (claim + admin + signature paste) */
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:50;padding:16px}
 .modal .card{max-width:720px;width:100%;background:#0f1318;border:1px solid #293241;border-radius:14px;color:#e5e7eb;padding:16px}
 .modal h3{margin:0 0 6px 0}
 .modal p{margin:0 0 10px 0;color:#9aa4ad;font-size:13px}
-.modal pre{max-height:360px;overflow:auto;background:#0b0f14;border-radius:10px;padding:12px;font-size:12px;color:#d1d5db;border:1px solid #2a3240}
+.modal pre, .modal textarea{max-height:360px;min-height:140px;overflow:auto;background:#0b0f14;border-radius:10px;padding:12px;font-size:12px;color:#d1d5db;border:1px solid #2a3240;width:100%;}
 .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
 .modal .btn-red{padding:10px 16px;border-radius:10px;background:#e60000;border:none;color:#fff;cursor:pointer}
 .modal .btn-red:hover{background:#cc0000}
@@ -101,20 +101,21 @@ footer{margin:16px 0;color:#9aa0a6}
         <button class="btn-red" onclick="start()">Start</button>
         <button class="btn-red" onclick="stop()">Stop</button>
         <button class="btn-red" onclick="requestPayout()">Request Payout (≥100 BGB)</button>
+        <button class="btn-red" onclick="claimToWallet()" id="claimWalletBtn">Claim to wallet (pay gas)</button>
         <button class="btn-red" onclick="toggleLog()">Chain</button>
       </div>
     </div>
 
     <div class="card" style="max-width:980px">
       <div class="row">Контракт токена: <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code></div>
-      <div class="row">Адрес пула: <code id="poolAddrView"></code> <span id="poolTypeTag" class="tag" style="margin-left:8px"></span></div>
+      <div class="row">Адрес пула: <code id="poolAddrView"></code> <span id="poolTypeTag" class="tag" style="margin-left:8px"></span> <span id="claimCapTag" class="tag" style="margin-left:8px"></span></div>
       <div class="row">Адрес админа: <code id="adminAddrView"></code></div>
     </div>
 
     <footer>© 2025 BGB Token</footer>
   </div>
 
-  <!-- Claim -->
+  <!-- Claim (payload for admin) -->
   <div id="claim" class="modal" role="dialog" aria-modal="true">
     <div class="card">
       <h3>Claim Payload</h3>
@@ -123,9 +124,21 @@ footer{margin:16px 0;color:#9aa0a6}
       <div class="row">
         <button class="btn-red" onclick="copyClaim()">Copy</button>
         <button class="btn-red" onclick="openTG()">Open Telegram</button>
-        <!-- Эта кнопка теперь корректно работает и для пула-контракта -->
         <button class="btn-red" id="adminSendBtn" style="display:none" onclick="adminPayoutFromModal()">Send from Pool (Admin)</button>
         <button class="btn-red" onclick="closeClaim()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: paste signature (manual voucher) -->
+  <div id="sigModal" class="modal" role="dialog" aria-modal="true">
+    <div class="card">
+      <h3>Вставьте подпись ваучера</h3>
+      <p>Если нет бэкенда, админ присылает вам строку подписи (0x…). Вставьте её сюда и подтвердите транзакцию.</p>
+      <textarea id="sigInput" placeholder="0x…"></textarea>
+      <div class="row">
+        <button class="btn-red" onclick="useSignatureFromModal()">Использовать подпись</button>
+        <button class="btn-red" onclick="closeSigModal()">Close</button>
       </div>
     </div>
   </div>
@@ -165,9 +178,9 @@ footer{margin:16px 0;color:#9aa0a6}
 
   // Токен и пул
   const TOKEN_ADDRESS       = "0xFeF80dbC16251862b82286864D77aFA08ECBcb5C";
-  // ВНИМАНИЕ: теперь пул = КОНТРАКТ МАЙНЕРА, где лежат 150k BGB
+  // Пул = КОНТРАКТ МАЙНЕРА, где лежат 150k BGB
   const POOL_ADDRESS        = "0x01C08edE0510Fd2F72f9e0C7056380f54Eb443e6"; // miner
-  // Адрес администратора (EOA), который владеет майнером и будет подписывать транзакции вызова методов контракта
+  // Адрес администратора (EOA) — для админ-выплат/подписей
   const ADMIN_ADDRESS       = "0xd2ac7f75dbad4aaa23e7e43f7aF03Ca4B05DB957";
 
   const TOKEN_ABI = [
@@ -177,11 +190,14 @@ footer{margin:16px 0;color:#9aa0a6}
     "function approve(address spender, uint256 amount) returns (bool)"
   ];
 
-  // Минимальный ABI для возможных функций пула-контракта (майнера)
+  // ABI: минимальный интерфейс пула-майнера
   const POOL_MINER_ABI = [
     "function owner() view returns (address)",
     "function rescueERC20(address token, address to, uint256 amount)",
-    "function execute(address to, uint256 value, bytes data) returns (bytes)"
+    "function execute(address to, uint256 value, bytes data) returns (bytes)",
+    // для claimSigned-режима
+    "function nonces(address) view returns (uint256)",
+    "function claimSigned(address to,uint256 amount,uint256 deadline,uint8 v,bytes32 r,bytes32 s)"
   ];
 
   const BSC_CHAIN_ID_HEX = "0x38"; // BSC mainnet
@@ -191,11 +207,12 @@ footer{margin:16px 0;color:#9aa0a6}
   const k256=s=>ethers.keccak256(ethers.toUtf8Bytes(s));
   function randHex(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
   function fmtB(x,dp=4){const d=10n**18n;const i=x/d;const f=(x%d).toString().padStart(18,'0').slice(0,dp);return `${i}.${f}`}
+  function fmtUnitsBI(bi, decimals=18, dp=4){ const d = 10n ** BigInt(decimals); const i = bi / d; const f = (bi % d).toString().padStart(decimals,'0').slice(0,dp); return `${i}.${f}`; }
   function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
   function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
 
   // ===== state
-  const KEY='bgb_miner_ui_v8';
+  const KEY='bgb_miner_ui_v9';
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
   const seen=new Set(); const queue=[];
@@ -239,7 +256,7 @@ footer{margin:16px 0;color:#9aa0a6}
   }
 
   // UI
-  let hrJ=0, POOL_IS_CONTRACT=false, POOL_OWNER_CACHE=null;
+  let hrJ=0, POOL_IS_CONTRACT=false, POOL_OWNER_CACHE=null, CLAIM_SIGNED_AVAILABLE=false;
   function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
   function render(){
     $('w').textContent=S.addr?S.addr.slice(0,6)+'…'+S.addr.slice(-4):'—';
@@ -248,6 +265,10 @@ footer{margin:16px 0;color:#9aa0a6}
     const pt = document.getElementById('poolTypeTag');
     pt.textContent = POOL_IS_CONTRACT ? 'POOL=CONTRACT' : 'POOL=EOA';
     pt.className = 'tag ' + (POOL_IS_CONTRACT ? 'ok' : '');
+
+    const ct = document.getElementById('claimCapTag');
+    ct.textContent = CLAIM_SIGNED_AVAILABLE ? 'claimSigned: OK' : 'claimSigned: N/A';
+    ct.className = 'tag ' + (CLAIM_SIGNED_AVAILABLE ? 'ok' : '');
 
     hrJ+=(Math.random()-0.5)*0.1; hrJ=Math.max(-0.5,Math.min(0.5,hrJ));
     const hr=Math.max(0,HR_UI*(1+hrJ/10)).toFixed(2);
@@ -262,9 +283,14 @@ footer{margin:16px 0;color:#9aa0a6}
     $('bar').style.width=Math.min(100,Number(S.accrued*100n/UNIT))+'%';
     $('accp').textContent=S.shares||0;
 
+    // режим администратора
     const isAdmin = isAdminWalletSync();
     const btn = document.getElementById('adminSendBtn');
     if(btn) btn.style.display = isAdmin ? 'inline-block' : 'none';
+
+    // claim to wallet доступен только если контракт поддерживает claimSigned
+    const claimBtn = document.getElementById('claimWalletBtn');
+    if (claimBtn) claimBtn.disabled = !CLAIM_SIGNED_AVAILABLE;
 
     const log=$('log');
     log.innerHTML=[
@@ -324,7 +350,7 @@ footer{margin:16px 0;color:#9aa0a6}
   function stop(){ S.running=false; $('msg').textContent='Paused'; }
   function toggleLog(){ const el=$('log'); el.style.display=(el.style.display==='none'?'block':'none'); }
 
-  // ====== Claim (пользователь)
+  // ====== Claim (пользователь → в Telegram админ)
   function requestPayout(){
     if(S.accrued<UNIT){ alert('Нужно минимум 100 BGB для запроса выплаты!'); return; }
     if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; }
@@ -343,7 +369,7 @@ footer{margin:16px 0;color:#9aa0a6}
     loadPoolBalance().catch(()=>{});
   }
   async function copyClaim(){ try{ await navigator.clipboard.writeText($('claimText').textContent); alert('Скопировано! Отправьте админу в Telegram.'); }catch{} }
-  function openTG(){ const txt=encodeURIComponent('Заявка на выплату BGB:\n\n'+$('claimText').textContent); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
+  function openTG(){ const txt=encodeURIComponent(`Заявка на выплату BGB:\n\n${$('claimText').textContent}`); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
   // ===== Admin helpers
@@ -368,17 +394,20 @@ footer{margin:16px 0;color:#9aa0a6}
       const code = await provider.getCode(POOL_ADDRESS);
       POOL_IS_CONTRACT = !!code && code !== '0x';
       if(POOL_IS_CONTRACT){
-        // попробуем узнать owner()
         try{
           const c = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, provider);
           POOL_OWNER_CACHE = await c.owner().catch(()=>null);
-        }catch{}
+          // проверим поддержку claimSigned
+          try{ await c.nonces("0x0000000000000000000000000000000000000000"); CLAIM_SIGNED_AVAILABLE = true; }catch{ CLAIM_SIGNED_AVAILABLE = false; }
+        }catch{ CLAIM_SIGNED_AVAILABLE = false; }
+      } else {
+        CLAIM_SIGNED_AVAILABLE = false;
       }
-    }catch(e){ console.warn('detectPoolType error', e); POOL_IS_CONTRACT=false; }
+    }catch(e){ console.warn('detectPoolType error', e); POOL_IS_CONTRACT=false; CLAIM_SIGNED_AVAILABLE=false; }
     render();
   }
 
-  // ===== Admin payout (с учётом пула-контракта)
+  // ===== Admin payout (как раньше)
   async function adminPayoutFromModal(){
     try{
       if(!isAdminWalletSync()){ alert('Admin mode: подключите кошелёк админа пула/контракта.'); return; }
@@ -395,7 +424,6 @@ footer{margin:16px 0;color:#9aa0a6}
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer   = await provider.getSigner();
 
-      // если пул = EOA (не наш случай, но поддержим) — переводим токеном от текущего кошелька (он должен держать баланс)
       if(!POOL_IS_CONTRACT){
         const token = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
         const tx = await token.transfer(to, BigInt(amountWeiStr));
@@ -408,24 +436,15 @@ footer{margin:16px 0;color:#9aa0a6}
         return;
       }
 
-      // пул = контракт (майнер). Пробуем rescueERC20, если нет — execute( token.transfer )
       const pool = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, signer);
       const token = new ethers.Interface(TOKEN_ABI);
       const calldata = token.encodeFunctionData('transfer', [to, BigInt(amountWeiStr)]);
 
       let tx;
-      try {
-        // 1) rescueERC20
-        tx = await pool.rescueERC20(TOKEN_ADDRESS, to, BigInt(amountWeiStr));
-      } catch (e1) {
-        try {
-          // 2) execute(address to, uint256 value, bytes data)
-          tx = await pool.execute(TOKEN_ADDRESS, 0, calldata);
-        } catch (e2) {
-          console.error('payout failed', {e1, e2});
-          alert('Контракт пула не поддерживает rescueERC20/execute. Нужен апгрейд: добавить одну из этих функций.');
-          return;
-        }
+      try { tx = await pool.rescueERC20(TOKEN_ADDRESS, to, BigInt(amountWeiStr)); }
+      catch (e1) {
+        try { tx = await pool.execute(TOKEN_ADDRESS, 0, calldata); }
+        catch (e2) { console.error('payout failed', {e1, e2}); alert('Контракт пула не поддерживает rescueERC20/execute. Нужен апгрейд.'); return; }
       }
 
       $('msg').textContent = 'Sending payout tx: ' + tx.hash;
@@ -434,13 +453,82 @@ footer{margin:16px 0;color:#9aa0a6}
       await loadPoolBalance();
       alert('Выплата отправлена: ' + tx.hash);
       closeClaim();
-    }catch(e){
-      console.error(e);
-      alert('Ошибка выплаты: ' + (e?.shortMessage || e?.message || e));
-    }
+    }catch(e){ console.error(e); alert('Ошибка выплаты: ' + (e?.shortMessage || e?.message || e)); }
   }
 
-  // ===== Баланс пула (читает баланс на адресе пула — контракта или кошелька)
+  // ===== Claim to wallet (pay gas) — пользовательская транзакция
+  let _pendingVoucher = null; // {to, amount, nonce, deadline}
+
+  function openSigModal(){ $('sigModal').style.display='flex'; }
+  function closeSigModal(){ $('sigModal').style.display='none'; }
+
+  async function claimToWallet(){
+    try{
+      if(!CLAIM_SIGNED_AVAILABLE){ alert('Контракт пула не поддерживает claimSigned — нужен апгрейд.'); return; }
+      if(!S.addr){ alert('Подключите кошелёк'); return; }
+      await ensureBSC();
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer   = await provider.getSigner();
+      const pool     = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, signer);
+
+      const pay = S.accrued - (S.accrued % UNIT);
+      if (pay <= 0n) { alert('Недостаточно для выплаты (минимум 100 BGB)'); return; }
+
+      const nonce = await pool.nonces(S.addr);
+      const deadline = Math.floor(Date.now()/1000) + 3600; // 1 час
+
+      const value = { to: S.addr, amount: pay.toString(), nonce: Number(nonce), deadline };
+      _pendingVoucher = value; // сохраним для ручного ввода подписи
+
+      // Попытка получить подпись с бэкенда (если настроен)
+      try {
+        const domain = { name: 'BGBMiner', version: '1', chainId: 56, verifyingContract: POOL_ADDRESS };
+        const types  = { Claim: [
+          { name: 'to', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'deadline', type: 'uint256' },
+        ]};
+        const res = await fetch('/api/bgb/claim-sign', {
+          method: 'POST', headers: { 'content-type':'application/json' }, body: JSON.stringify({ domain, types, value })
+        });
+        if (!res.ok) throw new Error('no backend');
+        const { sig } = await res.json();
+        await submitClaimWithSig(sig, pool, value);
+        return;
+      } catch(e){
+        // Бэкенда нет — просим вставить подпись ваучера вручную
+        openSigModal();
+      }
+    }catch(e){ console.error(e); alert('Claim error: ' + (e?.shortMessage || e?.message || e)); }
+  }
+
+  async function useSignatureFromModal(){
+    try{
+      const sig = (document.getElementById('sigInput').value||'').trim();
+      if(!sig || !sig.startsWith('0x')){ alert('Вставьте корректную подпись 0x…'); return; }
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer   = await provider.getSigner();
+      const pool     = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, signer);
+      await submitClaimWithSig(sig, pool, _pendingVoucher);
+      closeSigModal();
+    }catch(e){ console.error(e); alert('Signature/claim error: ' + (e?.shortMessage || e?.message || e)); }
+  }
+
+  async function submitClaimWithSig(sig, pool, value){
+    if(!value){ alert('Нет данных ваучера'); return; }
+    const { v, r, s } = ethers.Signature.from(sig);
+    const tx = await pool.claimSigned(value.to, value.amount, value.deadline, v, r, s);
+    $('msg').textContent = 'Submitting claim tx: ' + tx.hash;
+    const rc = await tx.wait();
+    $('msg').textContent = 'Claim confirmed in block ' + rc.blockNumber;
+    S.accrued -= BigInt(value.amount);
+    save(); render(); loadPoolBalance();
+    alert('Выплата отправлена: ' + tx.hash);
+  }
+
+  // ===== Баланс пула (читает баланс на адресе пула — контракта)
   let _tokenDecimals = 18;
   function getReadProvider(){
     if (window.ethereum) { try { return new ethers.BrowserProvider(window.ethereum); } catch {} }
@@ -453,13 +541,37 @@ footer{margin:16px 0;color:#9aa0a6}
       const token = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signerOrProvider);
       try { _tokenDecimals = Number(await token.decimals()); } catch {}
       const raw = await token.balanceOf(POOL_ADDRESS);
-      const formatted = Number(raw) / 10**_tokenDecimals;
-      $('poolBalance').textContent = formatted.toFixed(4) + " BGB";
-    }catch(e){
-      console.error("pool balance error:", e);
-      $('poolBalance').textContent = "—";
-    }
+      $('poolBalance').textContent = fmtUnitsBI(raw, _tokenDecimals) + " BGB";
+    }catch(e){ console.error("pool balance error:", e); $('poolBalance').textContent = "—"; }
   }
+
+  // ---- export handlers to window (for inline onclick) ----
+  Object.assign(window, {
+    openInMetaMask,
+    openInTrust,
+    doConnect,
+    start,
+    stop,
+    toggleLog,
+    requestPayout,
+    copyClaim,
+    openTG,
+    closeClaim,
+    adminPayoutFromModal,
+    claimToWallet,
+    useSignatureFromModal,
+    closeSigModal,
+  });
+
+  // basic self-tests (console) — ensures handlers are present
+  (function runSelfTests(){
+    try{
+      const fns = ['claimToWallet','requestPayout','adminPayoutFromModal','openTG'];
+      const missing = fns.filter(n=> typeof window[n] !== 'function');
+      if(missing.length){ console.error('Self-test failed: missing', missing); $('msg').textContent = 'Init error: missing '+missing.join(', '); }
+      else { console.log('Self-test OK: handlers ready'); }
+    }catch(e){ console.error('Self-test error', e); }
+  })();
 
   // boot
   load(null);
@@ -472,7 +584,6 @@ footer{margin:16px 0;color:#9aa0a6}
       .then(acc=>{
         if(acc && acc[0]){ load(acc[0]); S.addr=acc[0]; render(); initFirebasePresence(); detectPoolType(); }
       }).catch(()=>{});
-    // обновлять режим админа при смене аккаунта/сети
     window.ethereum.on?.('accountsChanged', ()=>{ if(S.addr){ doConnect(); } });
     window.ethereum.on?.('chainChanged', ()=>{ loadPoolBalance(); detectPoolType(); });
   }
