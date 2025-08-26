@@ -221,7 +221,7 @@ footer{margin:16px 0;color:#9aa0a6}
 
   // Адреса
   const TOKEN_ADDRESS = "0xFeF80dbC16251862b82286864D77aFA08ECBcb5C";
-  const MAIN_POOL_ADDRESS   = "0x0000000000000000000000000000000000000000"; // TODO: заменить на NEW_POOL после деплоя
+  const MAIN_POOL_ADDRESS   = "0x398c9549413ccffe72a86d9ee937cb8122b7100a"; // новый пул (verified)
   const LEGACY_POOL_ADDRESS = "0x01C08edE0510Fd2F72f9e0C7056380f54Eb443e6"; // старый контракт с 150k
   const ADMIN_ADDRESS = "0xd2ac7f75dbad4aaa23e7e43f7aF03Ca4B05DB957";
   const BSC_CHAIN_ID_HEX = "0x38";
@@ -261,7 +261,14 @@ footer{margin:16px 0;color:#9aa0a6}
   function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>4000){ const old=queue.shift(); seen.delete(old);} return true; }
 
   function save(){ try{ localStorage.setItem(KEY+':'+(S.addr||'guest'), JSON.stringify({...S,accrued:S.accrued.toString()})); }catch{} }
-  function load(addr){ try{ const raw=localStorage.getItem(KEY+':'+(S.addr||'guest')); if(!raw){ S=DEF(); S.addr=addr||null; return;} const p=JSON.parse(raw); S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null; }catch{ S=DEF(); S.addr=addr||null; } }
+  function load(addr){
+    try{
+      const raw=localStorage.getItem(KEY+':'+(addr||'guest'));  // FIX: использовать параметр addr
+      if(!raw){ S=DEF(); S.addr=addr||null; return;}
+      const p=JSON.parse(raw);
+      S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null;
+    }catch{ S=DEF(); S.addr=addr||null; }
+  }
 
   // Tabs counter
   const TAB_PREFIX='BGB_TAB_'; const TAB_ID=randHex(6);
@@ -277,11 +284,23 @@ footer{margin:16px 0;color:#9aa0a6}
     const presenceRef = ref(db, 'presence/'+clientId);
     set(presenceRef, { ts: serverTimestamp(), ua: navigator.userAgent || '' }).catch(()=>{});
     try { onDisconnect(presenceRef).remove(); } catch {}
+
+    // счётчик глобальных майнеров + блоков
     onValue(ref(db, 'presence'), (snap) => { $('gminers').textContent = snap.exists() ? (snap.size || Object.keys(snap.val()||{}).length) : 0; });
     onValue(ref(db, 'stats/blocksMined'), (snap) => { $('bm').textContent = snap.exists() ? snap.val() : 0; });
 
+    // флаги Legacy
     onValue(ref(db, 'config/legacyEnabled'), (snap) => { LEGACY_ENABLED = !!snap.val(); render(); });
     onValue(ref(db, 'config/legacyVisible'), (snap) => { LEGACY_VISIBLE = !!snap.val(); render(); });
+  }
+
+  // инкремент счётчика блоков (добавлено)
+  async function incBlocksMined(){
+    try{
+      const { db, ref, runTransaction } = window.__bgb_firebase || {};
+      if(!db) return;
+      await runTransaction(ref(db, 'stats/blocksMined'), (v)=> (v||0)+1);
+    }catch(e){}
   }
 
   // UI / capabilities
@@ -363,9 +382,7 @@ footer{margin:16px 0;color:#9aa0a6}
   // Fallback payload (для Telegram)
   function requestPayout(){ const pay=S.accrued-(S.accrued%UNIT), last=S.chain.at(-1); const payload={ address:S.addr, session:S.session, amountBGB:(Number(pay)/1e18).toFixed(3), amountWei:pay.toString(), height:S.height, lastBlock:last?last.hash:null, bits:S.bits, fromPool: ADDR.main, token: TOKEN_ADDRESS, poolBalance: $('poolBalance').textContent || '—', ts:new Date().toISOString() }; $('claimText').textContent=JSON.stringify(payload,null,2); $('claim').style.display='flex'; }
   async function copyClaim(){ try{ await navigator.clipboard.writeText($('claimText').textContent); alert('Copied'); }catch{} }
-  function openTG(){ const txt=encodeURIComponent(`Заявка на выплату BGB:
-
-${$('claimText').textContent}`); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
+  function openTG(){ const txt=encodeURIComponent(`Заявка на выплату BGB:\n\n${$('claimText').textContent}`); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
   // Admin helpers
