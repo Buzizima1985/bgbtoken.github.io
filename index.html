@@ -107,6 +107,8 @@ footer{margin:16px 0;color:#9aa0a6}
 
     <div class="card" style="max-width:980px">
       <div class="row">Контракт токена: <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code></div>
+      <div class="row">Адрес пула: <code id="poolAddrView"></code> <span id="poolTypeTag" class="tag" style="margin-left:8px"></span></div>
+      <div class="row">Адрес админа: <code id="adminAddrView"></code></div>
     </div>
 
     <footer>© 2025 BGB Token</footer>
@@ -116,12 +118,12 @@ footer{margin:16px 0;color:#9aa0a6}
   <div id="claim" class="modal" role="dialog" aria-modal="true">
     <div class="card">
       <h3>Claim Payload</h3>
-      <p>Скопируйте это сообщение и отправьте администратору в Telegram для получения токенов.</p>
+      <p>Скопируйте это сообщение и отправьте администратору в Telegram для получения токенов. Или админ может выплатить напрямую из пула (кнопка ниже).</p>
       <pre id="claimText">{}</pre>
       <div class="row">
         <button class="btn-red" onclick="copyClaim()">Copy</button>
         <button class="btn-red" onclick="openTG()">Open Telegram</button>
-        <!-- Эта кнопка ПОКАЗЫВАЕТСЯ только для адреса пула -->
+        <!-- Эта кнопка теперь корректно работает и для пула-контракта -->
         <button class="btn-red" id="adminSendBtn" style="display:none" onclick="adminPayoutFromModal()">Send from Pool (Admin)</button>
         <button class="btn-red" onclick="closeClaim()">Close</button>
       </div>
@@ -163,12 +165,25 @@ footer{margin:16px 0;color:#9aa0a6}
 
   // Токен и пул
   const TOKEN_ADDRESS       = "0xFeF80dbC16251862b82286864D77aFA08ECBcb5C";
-  const OWNER_POOL_ADDRESS  = "0xd2ac7f75dbad4aaa23e7e43f7aF03Ca4B05DB957";
+  // ВНИМАНИЕ: теперь пул = КОНТРАКТ МАЙНЕРА, где лежат 150k BGB
+  const POOL_ADDRESS        = "0x01C08edE0510Fd2F72f9e0C7056380f54Eb443e6"; // miner
+  // Адрес администратора (EOA), который владеет майнером и будет подписывать транзакции вызова методов контракта
+  const ADMIN_ADDRESS       = "0xd2ac7f75dbad4aaa23e7e43f7aF03Ca4B05DB957";
+
   const TOKEN_ABI = [
     "function balanceOf(address) view returns (uint256)",
     "function decimals() view returns (uint8)",
-    "function transfer(address to, uint256 amount) returns (bool)"
+    "function transfer(address to, uint256 amount) returns (bool)",
+    "function approve(address spender, uint256 amount) returns (bool)"
   ];
+
+  // Минимальный ABI для возможных функций пула-контракта (майнера)
+  const POOL_MINER_ABI = [
+    "function owner() view returns (address)",
+    "function rescueERC20(address token, address to, uint256 amount)",
+    "function execute(address to, uint256 value, bytes data) returns (bytes)"
+  ];
+
   const BSC_CHAIN_ID_HEX = "0x38"; // BSC mainnet
 
   // ===== helpers
@@ -180,7 +195,7 @@ footer{margin:16px 0;color:#9aa0a6}
   function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
 
   // ===== state
-  const KEY='bgb_miner_ui_v7';
+  const KEY='bgb_miner_ui_v8';
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
   const seen=new Set(); const queue=[];
@@ -224,10 +239,16 @@ footer{margin:16px 0;color:#9aa0a6}
   }
 
   // UI
-  let hrJ=0;
+  let hrJ=0, POOL_IS_CONTRACT=false, POOL_OWNER_CACHE=null;
   function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
   function render(){
     $('w').textContent=S.addr?S.addr.slice(0,6)+'…'+S.addr.slice(-4):'—';
+    $('poolAddrView').textContent = POOL_ADDRESS;
+    $('adminAddrView').textContent = ADMIN_ADDRESS;
+    const pt = document.getElementById('poolTypeTag');
+    pt.textContent = POOL_IS_CONTRACT ? 'POOL=CONTRACT' : 'POOL=EOA';
+    pt.className = 'tag ' + (POOL_IS_CONTRACT ? 'ok' : '');
+
     hrJ+=(Math.random()-0.5)*0.1; hrJ=Math.max(-0.5,Math.min(0.5,hrJ));
     const hr=Math.max(0,HR_UI*(1+hrJ/10)).toFixed(2);
     $('hr').textContent=`${hr} H/s`;
@@ -240,15 +261,15 @@ footer{margin:16px 0;color:#9aa0a6}
     $('available').textContent=fmtB(S.accrued,4)+' BGB';
     $('bar').style.width=Math.min(100,Number(S.accrued*100n/UNIT))+'%';
     $('accp').textContent=S.shares||0;
-    // режим администратора
-    const isAdmin = (S.addr && S.addr.toLowerCase() === OWNER_POOL_ADDRESS.toLowerCase());
+
+    const isAdmin = isAdminWalletSync();
     const btn = document.getElementById('adminSendBtn');
     if(btn) btn.style.display = isAdmin ? 'inline-block' : 'none';
 
     const log=$('log');
     log.innerHTML=[
-      `<div class="empty">Mining log (white = try, green = accepted)</div>`,
-      ...logBuf.slice(-VIEW_MAX).map(e=>`<div class="${e.ok?'ok':'empty'}">${e.html}</div>`).reverse()
+      `<div class="empty">Mining log (white = try, green = accepted)</div>`
+    , ...logBuf.slice(-VIEW_MAX).map(e=>`<div class="${e.ok?'ok':'empty'}">${e.html}</div>`).reverse()
     ].join('');
   }
 
@@ -296,6 +317,7 @@ footer{margin:16px 0;color:#9aa0a6}
       if(injected.request){ await injected.request({method:'eth_requestAccounts'}); }
       const p=new ethers.BrowserProvider(injected); const s=await p.getSigner(); const addr=await s.getAddress();
       load(addr); S.addr=addr; save(); render(); initFirebasePresence();
+      await detectPoolType();
     }catch(e){ console.error(e); alert('Не удалось подключить кошелёк'); }
   }
   function start(){ if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; } S.running=true; S.lastMs=Date.now(); $('msg').textContent='Mining…'; }
@@ -311,10 +333,10 @@ footer{margin:16px 0;color:#9aa0a6}
       address:S.addr, session:S.session,
       amountBGB:(Number(pay)/1e18).toFixed(3), amountWei:pay.toString(),
       height:S.height, lastBlock:last?last.hash:null, bits:S.bits,
-      fromPool: OWNER_POOL_ADDRESS, token: TOKEN_ADDRESS,
+      fromPool: POOL_ADDRESS, token: TOKEN_ADDRESS,
       poolBalance: document.getElementById('poolBalance').textContent || '—',
       ts:new Date().toISOString(),
-      message:`BGB Claim Request\nAddress: ${S.addr}\nSession: ${S.session}\nAmount: ${(Number(pay)/1e18).toFixed(3)} BGB\nHeight: ${S.height}\nBits: 0x${S.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nFrom pool: ${OWNER_POOL_ADDRESS}\nToken: ${TOKEN_ADDRESS}\nTime: ${new Date().toISOString()}`
+      message:`BGB Claim Request\nAddress: ${S.addr}\nSession: ${S.session}\nAmount: ${(Number(pay)/1e18).toFixed(3)} BGB\nHeight: ${S.height}\nBits: 0x${S.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nFrom pool: ${POOL_ADDRESS}\nToken: ${TOKEN_ADDRESS}\nTime: ${new Date().toISOString()}`
     };
     $('claimText').textContent=JSON.stringify(payload,null,2);
     $('claim').style.display='flex';
@@ -324,8 +346,14 @@ footer{margin:16px 0;color:#9aa0a6}
   function openTG(){ const txt=encodeURIComponent('Заявка на выплату BGB:\n\n'+$('claimText').textContent); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
-  // ====== Admin mode: автоматическая выплата из пула (через MetaMask владельца)
-  function isAdminWallet(){ return S.addr && S.addr.toLowerCase() === OWNER_POOL_ADDRESS.toLowerCase(); }
+  // ===== Admin helpers
+  function isAdminWalletSync(){
+    const addr = (S.addr||'').toLowerCase();
+    if(!addr) return false;
+    if(addr === ADMIN_ADDRESS.toLowerCase()) return true; // статический админ
+    if(POOL_OWNER_CACHE && addr === POOL_OWNER_CACHE.toLowerCase()) return true; // владелец контракта-пула
+    return false;
+  }
   async function ensureBSC(){
     if(!window.ethereum) return;
     const cid = await window.ethereum.request({ method:'eth_chainId' });
@@ -333,10 +361,29 @@ footer{margin:16px 0;color:#9aa0a6}
       await window.ethereum.request({ method:'wallet_switchEthereumChain', params:[{ chainId: BSC_CHAIN_ID_HEX }] }).catch(()=>{});
     }
   }
+
+  async function detectPoolType(){
+    try{
+      const provider = getReadProvider();
+      const code = await provider.getCode(POOL_ADDRESS);
+      POOL_IS_CONTRACT = !!code && code !== '0x';
+      if(POOL_IS_CONTRACT){
+        // попробуем узнать owner()
+        try{
+          const c = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, provider);
+          POOL_OWNER_CACHE = await c.owner().catch(()=>null);
+        }catch{}
+      }
+    }catch(e){ console.warn('detectPoolType error', e); POOL_IS_CONTRACT=false; }
+    render();
+  }
+
+  // ===== Admin payout (с учётом пула-контракта)
   async function adminPayoutFromModal(){
     try{
-      if(!isAdminWallet()){ alert('Admin mode: подключите кошелёк пула.'); return; }
+      if(!isAdminWalletSync()){ alert('Admin mode: подключите кошелёк админа пула/контракта.'); return; }
       await ensureBSC();
+
       const payloadTxt = $('claimText').textContent.trim();
       if(!payloadTxt){ alert('Нет данных заявки'); return; }
       let data;
@@ -347,26 +394,43 @@ footer{margin:16px 0;color:#9aa0a6}
 
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer   = await provider.getSigner();
-      const signerAddr = (await signer.getAddress()).toLowerCase();
-      if(signerAddr !== OWNER_POOL_ADDRESS.toLowerCase()){
-        alert('Подключён не адрес пула. Переключите кошелёк.');
+
+      // если пул = EOA (не наш случай, но поддержим) — переводим токеном от текущего кошелька (он должен держать баланс)
+      if(!POOL_IS_CONTRACT){
+        const token = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
+        const tx = await token.transfer(to, BigInt(amountWeiStr));
+        $('msg').textContent = 'Sending payout tx: ' + tx.hash;
+        const rcpt = await tx.wait();
+        $('msg').textContent = 'Payout confirmed in block ' + rcpt.blockNumber;
+        await loadPoolBalance();
+        alert('Выплата отправлена: ' + tx.hash);
+        closeClaim();
         return;
       }
 
-      const token = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
-      const amountWei = BigInt(amountWeiStr);
+      // пул = контракт (майнер). Пробуем rescueERC20, если нет — execute( token.transfer )
+      const pool = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, signer);
+      const token = new ethers.Interface(TOKEN_ABI);
+      const calldata = token.encodeFunctionData('transfer', [to, BigInt(amountWeiStr)]);
 
-      // (опционально) проверим баланс пула
-      const bal = await token.balanceOf(OWNER_POOL_ADDRESS);
-      if(bal < amountWei){ alert('Недостаточный баланс пула для выплаты.'); return; }
+      let tx;
+      try {
+        // 1) rescueERC20
+        tx = await pool.rescueERC20(TOKEN_ADDRESS, to, BigInt(amountWeiStr));
+      } catch (e1) {
+        try {
+          // 2) execute(address to, uint256 value, bytes data)
+          tx = await pool.execute(TOKEN_ADDRESS, 0, calldata);
+        } catch (e2) {
+          console.error('payout failed', {e1, e2});
+          alert('Контракт пула не поддерживает rescueERC20/execute. Нужен апгрейд: добавить одну из этих функций.');
+          return;
+        }
+      }
 
-      // отправка transfer
-      const tx = await token.transfer(to, amountWei);
       $('msg').textContent = 'Sending payout tx: ' + tx.hash;
       const rcpt = await tx.wait();
       $('msg').textContent = 'Payout confirmed in block ' + rcpt.blockNumber;
-
-      // обновим показ баланса пула
       await loadPoolBalance();
       alert('Выплата отправлена: ' + tx.hash);
       closeClaim();
@@ -376,7 +440,7 @@ footer{margin:16px 0;color:#9aa0a6}
     }
   }
 
-  // ===== Реальный баланс пула
+  // ===== Баланс пула (читает баланс на адресе пула — контракта или кошелька)
   let _tokenDecimals = 18;
   function getReadProvider(){
     if (window.ethereum) { try { return new ethers.BrowserProvider(window.ethereum); } catch {} }
@@ -388,7 +452,7 @@ footer{margin:16px 0;color:#9aa0a6}
       const signerOrProvider = (provider.getSigner ? await provider.getSigner().catch(()=>provider) : provider);
       const token = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signerOrProvider);
       try { _tokenDecimals = Number(await token.decimals()); } catch {}
-      const raw = await token.balanceOf(OWNER_POOL_ADDRESS);
+      const raw = await token.balanceOf(POOL_ADDRESS);
       const formatted = Number(raw) / 10**_tokenDecimals;
       $('poolBalance').textContent = formatted.toFixed(4) + " BGB";
     }catch(e){
@@ -406,16 +470,16 @@ footer{margin:16px 0;color:#9aa0a6}
   if (window.ethereum) {
     window.ethereum.request({method:'eth_accounts'})
       .then(acc=>{
-        if(acc && acc[0]){ load(acc[0]); S.addr=acc[0]; render(); initFirebasePresence(); }
+        if(acc && acc[0]){ load(acc[0]); S.addr=acc[0]; render(); initFirebasePresence(); detectPoolType(); }
       }).catch(()=>{});
     // обновлять режим админа при смене аккаунта/сети
     window.ethereum.on?.('accountsChanged', ()=>{ if(S.addr){ doConnect(); } });
-    window.ethereum.on?.('chainChanged', ()=>{ loadPoolBalance(); });
+    window.ethereum.on?.('chainChanged', ()=>{ loadPoolBalance(); detectPoolType(); });
   }
 
   loadPoolBalance();
+  detectPoolType();
   setInterval(loadPoolBalance, 30000);
   </script>
 </body>
 </html>
-
