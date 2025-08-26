@@ -11,16 +11,14 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:#0b0f14;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
 .overlay{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:22px 14px;gap:12px}
-h1{font-weight:800;font-size:44px;background:linear-gradient(90deg,#ff7a00,#ff3b3b);
-     -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h1{font-weight:800;font-size:44px;background:linear-gradient(90deg,#ff7a00,#ff3b3b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .subtitle{color:#eaeaea}
 .buttons{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
-.btn{padding:12px 20px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;
-     box-shadow:0 0 10px #e60000;cursor:pointer;text-decoration:none;display:inline-flex;gap:8px;align-items:center}
+.btn{padding:12px 20px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 0 10px #e60000;cursor:pointer;text-decoration:none;display:inline-flex;gap:8px;align-items:center}
+.btn[disabled]{opacity:.6;cursor:not-allowed}
 .btn:hover{background:var(--accent2);transform:translateY(-1px)}
 
-.card{width:100%;max-width:980px;background:#101418;border:1px solid #1f2531;border-radius:18px;
-      padding:16px 18px;box-shadow:0 4px 30px rgba(0,0,0,.35)}
+.card{width:100%;max-width:1000px;background:#101418;border:1px solid #1f2531;border-radius:18px;padding:16px 18px;box-shadow:0 4px 30px rgba(0,0,0,.35)}
 .hdr{font-weight:800;font-size:20px;margin-bottom:6px}
 
 .row{font-size:14px;margin:2px 0;opacity:.95}
@@ -33,26 +31,36 @@ h1{font-weight:800;font-size:44px;background:linear-gradient(90deg,#ff7a00,#ff3b
 #bar{height:100%;width:0%;background:#00ff88;transition:width .3s}
 
 .btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
-.btn-red{padding:10px 18px;font-size:15px;border-radius:10px;background:var(--accent);color:#fff;border:none;
-         box-shadow:0 0 10px #e60000;cursor:pointer}
+.btn-red{padding:10px 18px;font-size:15px;border-radius:10px;background:var(--accent);color:#fff;border:none;box-shadow:0 0 10px #e60000;cursor:pointer}
+.btn-red[disabled]{opacity:.6;cursor:not-allowed}
 .btn-red:hover{background:var(--accent2);transform:scale(1.05)}
 
-.list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:260px;overflow:auto;
-      background:#0b0f14;border:1px solid #223043;border-radius:12px;padding:10px;margin-top:8px}
+.list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:260px;overflow:auto;background:#0b0f14;border:1px solid #223043;border-radius:12px;padding:10px;margin-top:8px}
 .list .ok{color:#00ff88}
 .list .empty{color:#e5e7eb}
 
 footer{margin:16px 0;color:#9aa0a6}
 
-/* Modal (claim + admin + signature paste) */
+/* Modals */
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:50;padding:16px}
-.modal .card{max-width:720px;width:100%;background:#0f1318;border:1px solid #293241;border-radius:14px;color:#e5e7eb;padding:16px}
+.modal .card{max-width:760px;width:100%;background:#0f1318;border:1px solid #293241;border-radius:14px;color:#e5e7eb;padding:16px}
 .modal h3{margin:0 0 6px 0}
 .modal p{margin:0 0 10px 0;color:#9aa4ad;font-size:13px}
-.modal pre, .modal textarea{max-height:360px;min-height:140px;overflow:auto;background:#0b0f14;border-radius:10px;padding:12px;font-size:12px;color:#d1d5db;border:1px solid #2a3240;width:100%;}
+.modal pre,.modal textarea{max-height:360px;min-height:120px;overflow:auto;background:#0b0f14;border-radius:10px;padding:12px;font-size:12px;color:#d1d5db;border:1px solid #2a3240;width:100%}
 .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
 .modal .btn-red{padding:10px 16px;border-radius:10px;background:#e60000;border:none;color:#fff;cursor:pointer}
 .modal .btn-red:hover{background:#cc0000}
+.select{background:#0b0f14;border:1px solid #2a3240;color:#e5e7eb;border-radius:10px;padding:8px 10px}
+.small{font-size:12px;color:#9aa0a6}
+
+/* Admin panel */
+.admin-toggle{display:none;position:sticky;top:10px;z-index:30}
+.admin-card{display:none}
+.admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.admin-box{background:#0d141c;border:1px solid #263040;border-radius:12px;padding:10px}
+.admin-box h4{margin:0 0 6px 0;font-size:14px;color:#cbd5e1}
+.admin-box label{display:flex;align-items:center;gap:8px;font-size:13px}
+.admin-box input[type="text"], .admin-box input[type="number"]{width:100%;padding:8px 10px;border-radius:10px;border:1px solid #2a3240;background:#0b0f14;color:#e5e7eb}
 </style>
 </head>
 <body>
@@ -83,7 +91,8 @@ footer{margin:16px 0;color:#9aa0a6}
         <span class="tag">Active miners (tabs): <b id="tabs">1</b></span>
         <span class="tag">Global miners: <b id="gminers">0</b></span>
         <span class="tag">Blocks mined: <b id="bm">0</b></span>
-        <span class="tag">Pool: <b id="poolBalance">—</b></span>
+        <span class="tag">Main pool: <b id="poolBalance">—</b></span>
+        <span class="tag" id="legacyTag">Legacy: <b id="legacyBalance">—</b></span>
         <span class="tag">Available: <b id="available">0.0000 BGB</b></span>
         <span class="tag ok">Accepted: <b id="accp">0</b></span>
       </div>
@@ -100,66 +109,100 @@ footer{margin:16px 0;color:#9aa0a6}
         <button class="btn-red" onclick="openInTrust()">Open in Trust</button>
         <button class="btn-red" onclick="start()">Start</button>
         <button class="btn-red" onclick="stop()">Stop</button>
-        <button class="btn-red" onclick="requestPayout()">Request Payout (≥100 BGB)</button>
-        <button class="btn-red" onclick="claimToWallet()" id="claimWalletBtn">Claim to wallet (pay gas)</button>
+        <button class="btn-red" onclick="withdraw()" id="withdrawBtn" title="Вывести на кошелёк (газ платит пользователь)">Withdraw</button>
         <button class="btn-red" onclick="toggleLog()">Chain</button>
       </div>
     </div>
 
-    <div class="card" style="max-width:980px">
-      <div class="row">Контракт токена: <code>0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</code></div>
-      <div class="row">Адрес пула: <code id="poolAddrView"></code> <span id="poolTypeTag" class="tag" style="margin-left:8px"></span> <span id="claimCapTag" class="tag" style="margin-left:8px"></span></div>
-      <div class="row">Адрес админа: <code id="adminAddrView"></code></div>
+    <div class="card" style="max-width:1000px">
+      <div class="hdr">Пулы</div>
+      <div class="row">Main (auto-withdraw): <code id="poolMainView"></code> <span id="claimCapTag" class="tag" style="margin-left:8px"></span></div>
+      <div class="row" id="legacyRow">Legacy (hidden): <code id="poolLegacyView"></code> <span id="legacyEnabledTag" class="tag" style="margin-left:8px"></span></div>
+      <div class="row small" id="legacyNote">Кнопка для Legacy скрыта для пользователей. Все пользовательские выплаты идут через Main.</div>
+      <div class="row">Admin: <code id="adminAddrView"></code></div>
+
+      <!-- Admin toggle (видно только админу) -->
+      <div class="admin-toggle">
+        <button class="btn" id="adminToggleBtn" onclick="toggleAdminPanel()">⚙️ Admin</button>
+      </div>
+      <div id="adminPanel" class="admin-card">
+        <div class="admin-grid">
+          <div class="admin-box">
+            <h4>Настройки Legacy</h4>
+            <label><input type="checkbox" id="chkLegacyVisible"> Показывать Legacy пользователям</label>
+            <label><input type="checkbox" id="chkLegacyEnabled"> Разрешить выплаты из Legacy (только админ)</label>
+            <button class="btn-red" style="margin-top:8px" onclick="adminSaveConfig()">Сохранить</button>
+          </div>
+
+          <div class="admin-box">
+            <h4>Миграция токенов</h4>
+            <label>Сумма (BGB)<input type="number" id="migrateAmt" min="0" step="0.0001" placeholder="100.0"></label>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <button class="btn-red" onclick="adminMigrate('legacy','main')">Legacy → Main</button>
+              <button class="btn-red" onclick="adminMigrate('main','legacy')">Main → Legacy</button>
+            </div>
+            <div class="small" style="margin-top:6px">Попытка через rescueERC20/execute на выбранном контракте.</div>
+          </div>
+
+          <div class="admin-box">
+            <h4>Ваучер (подпись)</h4>
+            <label>Адрес получателя<input type="text" id="vTo" placeholder="0x..."/></label>
+            <label>Сумма (BGB)<input type="number" id="vAmt" min="0" step="0.0001" placeholder="100.0"/></label>
+            <label>Срок (мин)<input type="number" id="vMins" min="1" step="1" value="60"/></label>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <button class="btn-red" onclick="adminGenerateVoucher()">Сгенерировать</button>
+              <button class="btn-red" onclick="adminCopyVoucher()">Copy</button>
+            </div>
+            <textarea id="voucherOut" placeholder="Здесь появится JSON с подписью" style="margin-top:8px"></textarea>
+          </div>
+        </div>
+      </div>
     </div>
 
     <footer>© 2025 BGB Token</footer>
   </div>
 
-  <!-- Claim (payload for admin) -->
+  <!-- Claim (payload for admin, fallback) -->
   <div id="claim" class="modal" role="dialog" aria-modal="true">
     <div class="card">
       <h3>Claim Payload</h3>
-      <p>Скопируйте это сообщение и отправьте администратору в Telegram для получения токенов. Или админ может выплатить напрямую из пула (кнопка ниже).</p>
+      <p>Если самовывод недоступен, отправьте это администратору в Telegram.</p>
       <pre id="claimText">{}</pre>
-      <div class="row">
-        <button class="btn-red" onclick="copyClaim()">Copy</button>
-        <button class="btn-red" onclick="openTG()">Open Telegram</button>
-        <button class="btn-red" id="adminSendBtn" style="display:none" onclick="adminPayoutFromModal()">Send from Pool (Admin)</button>
-        <button class="btn-red" onclick="closeClaim()">Close</button>
+      <div class="row" style="justify-content:space-between">
+        <div id="payoutSourceWrap" style="display:none">
+          <label class="small">Payout source:</label>
+          <select id="payoutSource" class="select"></select>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-red" onclick="copyClaim()">Copy</button>
+          <button class="btn-red" onclick="openTG()">Open Telegram</button>
+          <button class="btn-red" id="adminSendBtn" style="display:none" onclick="adminPayoutFromModal()">Send (Admin)</button>
+          <button class="btn-red" onclick="closeClaim()">Close</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal: paste signature (manual voucher) -->
+  <!-- Modal: подпись ваучера вручную (если нет бэка) -->
   <div id="sigModal" class="modal" role="dialog" aria-modal="true">
     <div class="card">
       <h3>Вставьте подпись ваучера</h3>
-      <p>Если нет бэкенда, админ присылает вам строку подписи (0x…). Вставьте её сюда и подтвердите транзакцию.</p>
+      <p>Администратор даёт вам подпись (0x…). Вставьте её и подтвердите транзакцию.</p>
       <textarea id="sigInput" placeholder="0x…"></textarea>
       <div class="row">
-        <button class="btn-red" onclick="useSignatureFromModal()">Использовать подпись</button>
+        <button class="btn-red" onclick="useSignatureFromModal()">Use signature</button>
         <button class="btn-red" onclick="closeSigModal()">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Ethers (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
 
-  <!-- Firebase (опционально) -->
+  <!-- Firebase presence + config (legacyVisible/legacyEnabled) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue, set, onDisconnect, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-    const firebaseConfig = {
-      apiKey: "AIzaSyAxVR12YVssinbr-dfZY8Wozjnou0TSpCM",
-      authDomain: "bgb-miner.firebaseapp.com",
-      projectId: "bgb-miner",
-      storageBucket: "bgb-miner.firebasestorage.app",
-      messagingSenderId: "1071946045783",
-      appId: "1:1071946045783:web:3d91a09f70ed6d1e714612",
-      measurementId: "G-53EZW3BDMX",
-      databaseURL: "https://bgb-miner-default-rtdb.firebaseio.com"
-    };
+    const firebaseConfig = { apiKey: "AIzaSyAxVR12YVssinbr-dfZY8Wozjnou0TSpCM", authDomain: "bgb-miner.firebaseapp.com", projectId: "bgb-miner", storageBucket: "bgb-miner.firebasestorage.app", messagingSenderId: "1071946045783", appId: "1:1071946045783:web:3d91a09f70ed6d1e714612", measurementId: "G-53EZW3BDMX", databaseURL: "https://bgb-miner-default-rtdb.firebaseio.com" };
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
     window.__bgb_firebase = { db, ref, onValue, set, onDisconnect, serverTimestamp, runTransaction };
@@ -167,76 +210,66 @@ footer{margin:16px 0;color:#9aa0a6}
 
   <!-- Main logic -->
   <script>
-  // === Параметры проекта
-  const MIN_PAYOUT_BGB   = 100n;
-  const UNIT             = MIN_PAYOUT_BGB * 10n**18n;
-  const BLOCK_REWARD     = 1n * 10n**18n;
+  // ====== Константы проекта
+  const MIN_PAYOUT_BGB = 100n;                         // лимит вывода
+  const UNIT           = MIN_PAYOUT_BGB * 10n**18n;
+  const BLOCK_REWARD   = 1n * 10n**18n;                // 1 BGB/блок (симуляция)
   const TRIES=128, LOG_MAX=600, VIEW_MAX=260;
   const BLOCK_TARGET_TIME=10, RETARGET_INTERVAL=20;
   const GENESIS='0xf49bd1cb89367c32e3e3814b66ce02a181043f63f9af3dc1e9b5686faf15742d';
   const HR_UI = 5.00;
 
-  // Токен и пул
-  const TOKEN_ADDRESS       = "0xFeF80dbC16251862b82286864D77aFA08ECBcb5C";
-  // Пул = КОНТРАКТ МАЙНЕРА, где лежат 150k BGB
-  const POOL_ADDRESS        = "0x01C08edE0510Fd2F72f9e0C7056380f54Eb443e6"; // miner
-  // Адрес администратора (EOA) — для админ-выплат/подписей
-  const ADMIN_ADDRESS       = "0xd2ac7f75dbad4aaa23e7e43f7aF03Ca4B05DB957";
+  // Адреса
+  const TOKEN_ADDRESS = "0xFeF80dbC16251862b82286864D77aFA08ECBcb5C";
+  const MAIN_POOL_ADDRESS   = "0x0000000000000000000000000000000000000000"; // TODO: заменить на NEW_POOL после деплоя
+  const LEGACY_POOL_ADDRESS = "0x01C08edE0510Fd2F72f9e0C7056380f54Eb443e6"; // старый контракт с 150k
+  const ADMIN_ADDRESS = "0xd2ac7f75dbad4aaa23e7e43f7aF03Ca4B05DB957";
+  const BSC_CHAIN_ID_HEX = "0x38";
 
+  const ADDR = { main: MAIN_POOL_ADDRESS, legacy: LEGACY_POOL_ADDRESS };
+
+  // ABI
   const TOKEN_ABI = [
     "function balanceOf(address) view returns (uint256)",
     "function decimals() view returns (uint8)",
-    "function transfer(address to, uint256 amount) returns (bool)",
-    "function approve(address spender, uint256 amount) returns (bool)"
+    "function transfer(address to, uint256 amount) returns (bool)"
   ];
-
-  // ABI: минимальный интерфейс пула-майнера
-  const POOL_MINER_ABI = [
+  const POOL_ABI = [
     "function owner() view returns (address)",
     "function rescueERC20(address token, address to, uint256 amount)",
     "function execute(address to, uint256 value, bytes data) returns (bytes)",
-    // для claimSigned-режима
     "function nonces(address) view returns (uint256)",
     "function claimSigned(address to,uint256 amount,uint256 deadline,uint8 v,bytes32 r,bytes32 s)"
   ];
 
-  const BSC_CHAIN_ID_HEX = "0x38"; // BSC mainnet
-
-  // ===== helpers
+  // Helpers
   const $=id=>document.getElementById(id);
   const k256=s=>ethers.keccak256(ethers.toUtf8Bytes(s));
   function randHex(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
   function fmtB(x,dp=4){const d=10n**18n;const i=x/d;const f=(x%d).toString().padStart(18,'0').slice(0,dp);return `${i}.${f}`}
-  function fmtUnitsBI(bi, decimals=18, dp=4){ const d = 10n ** BigInt(decimals); const i = bi / d; const f = (bi % d).toString().padStart(decimals,'0').slice(0,dp); return `${i}.${f}`; }
+  function fmtUnitsBI(bi,dec=18,dp=4){const d=10n**BigInt(dec);const i=bi/d;const f=(bi%d).toString().padStart(dec,'0').slice(0,dp);return `${i}.${f}`}
   function compactToTarget(bits){const exp=(bits>>>24)&0xff;const mant=bits&0x007fffff;let t=BigInt(mant);const sh=8*(exp-3);return sh>=0?t*(1n<<BigInt(sh)):t/(1n<<BigInt(-sh))}
   function targetToCompact(t){let e=3,n=BigInt(t);while(n>0x007fffffn){n>>=8n;e++}const m=Number(n&0x007fffffn);return((e&0xff)<<24)|m}
 
-  // ===== state
-  const KEY='bgb_miner_ui_v9';
+  // State
+  const KEY='bgb_miner_ui_v13';
   const DEF=()=>({addr:null,running:false,lastMs:Date.now(),accrued:0n,bits:0x1f00ffff,height:0,chain:[],shares:0,ctr:0,session:randHex(16)});
   let S=DEF(), logBuf=[];
+  let LEGACY_ENABLED=false, LEGACY_VISIBLE=false;
+
   const seen=new Set(); const queue=[];
-  function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>4000){ const old=queue.shift(); seen.delete(old); } return true; }
+  function remember(hash){ if(seen.has(hash)) return false; seen.add(hash); queue.push(hash); if(queue.length>4000){ const old=queue.shift(); seen.delete(old);} return true; }
 
   function save(){ try{ localStorage.setItem(KEY+':'+(S.addr||'guest'), JSON.stringify({...S,accrued:S.accrued.toString()})); }catch{} }
-  function load(addr){
-    try{ const raw=localStorage.getItem(KEY+':'+(addr||'guest'));
-      if(!raw){ S=DEF(); S.addr=addr||null; return; }
-      const p=JSON.parse(raw); S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null;
-    }catch{ S=DEF(); S.addr=addr||null; }
-  }
+  function load(addr){ try{ const raw=localStorage.getItem(KEY+':'+(S.addr||'guest')); if(!raw){ S=DEF(); S.addr=addr||null; return;} const p=JSON.parse(raw); S={...DEF(),...p}; if(typeof S.accrued==='string') S.accrued=BigInt(S.accrued); S.addr=addr||null; }catch{ S=DEF(); S.addr=addr||null; } }
 
-  // вкладки
+  // Tabs counter
   const TAB_PREFIX='BGB_TAB_'; const TAB_ID=randHex(6);
   function heartbeat(){ try{ localStorage.setItem(TAB_PREFIX+TAB_ID, String(Date.now())); }catch{} }
-  function countTabs(){ try{
-      const now=Date.now(), ttl=9000; let n=0;
-      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.startsWith(TAB_PREFIX)){ const t=Number(localStorage.getItem(k)); if(now - t < ttl) n++; } }
-      $('tabs').textContent=n||1;
-  }catch{ $('tabs').textContent='1'; } }
-  setInterval(()=>{ heartbeat(); countTabs(); }, 3000); heartbeat(); countTabs();
+  function countTabs(){ try{ const now=Date.now(), ttl=9000; let n=0; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.startsWith(TAB_PREFIX)){ const t=Number(localStorage.getItem(k)); if(now-t < ttl) n++; } } $('tabs').textContent=n||1; }catch{ $('tabs').textContent='1'; } }
+  setInterval(()=>{ heartbeat(); countTabs(); },3000); heartbeat(); countTabs();
 
-  // Firebase (если есть)
+  // Firebase presence + config
   function initFirebasePresence(){
     if (!window.__bgb_firebase || !S.addr) return;
     const { db, ref, onValue, set, onDisconnect, serverTimestamp } = window.__bgb_firebase;
@@ -246,29 +279,38 @@ footer{margin:16px 0;color:#9aa0a6}
     try { onDisconnect(presenceRef).remove(); } catch {}
     onValue(ref(db, 'presence'), (snap) => { $('gminers').textContent = snap.exists() ? (snap.size || Object.keys(snap.val()||{}).length) : 0; });
     onValue(ref(db, 'stats/blocksMined'), (snap) => { $('bm').textContent = snap.exists() ? snap.val() : 0; });
-  }
-  async function incBlocksMined(){
-    try{
-      const { db, ref, runTransaction } = window.__bgb_firebase || {};
-      if(!db) return;
-      await runTransaction(ref(db, 'stats/blocksMined'), (v)=> (v||0)+1);
-    }catch(e){}
+
+    onValue(ref(db, 'config/legacyEnabled'), (snap) => { LEGACY_ENABLED = !!snap.val(); render(); });
+    onValue(ref(db, 'config/legacyVisible'), (snap) => { LEGACY_VISIBLE = !!snap.val(); render(); });
   }
 
-  // UI
-  let hrJ=0, POOL_IS_CONTRACT=false, POOL_OWNER_CACHE=null, CLAIM_SIGNED_AVAILABLE=false;
-  function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
+  // UI / capabilities
+  let hrJ=0;
+  const CAPS={ main:{isContract:false, claim:false, owner:null}, legacy:{isContract:false, claim:false, owner:null} };
+
   function render(){
     $('w').textContent=S.addr?S.addr.slice(0,6)+'…'+S.addr.slice(-4):'—';
-    $('poolAddrView').textContent = POOL_ADDRESS;
-    $('adminAddrView').textContent = ADMIN_ADDRESS;
-    const pt = document.getElementById('poolTypeTag');
-    pt.textContent = POOL_IS_CONTRACT ? 'POOL=CONTRACT' : 'POOL=EOA';
-    pt.className = 'tag ' + (POOL_IS_CONTRACT ? 'ok' : '');
+    $('poolMainView').textContent=ADDR.main;
+    $('poolLegacyView').textContent=ADDR.legacy;
+    $('adminAddrView').textContent=ADMIN_ADDRESS;
 
-    const ct = document.getElementById('claimCapTag');
-    ct.textContent = CLAIM_SIGNED_AVAILABLE ? 'claimSigned: OK' : 'claimSigned: N/A';
-    ct.className = 'tag ' + (CLAIM_SIGNED_AVAILABLE ? 'ok' : '');
+    const ct=$('claimCapTag'); ct.textContent = CAPS.main.claim ? 'claimSigned: OK' : 'claimSigned: N/A'; ct.className = 'tag ' + (CAPS.main.claim?'ok':'');
+
+    const lt=$('legacyEnabledTag'); lt.textContent = LEGACY_ENABLED ? 'legacy payouts: enabled' : 'legacy payouts: hidden'; lt.className = 'tag ' + (LEGACY_ENABLED?'ok':'');
+
+    const legacyRow=$('legacyRow'), legacyTag=$('legacyTag'), legacyNote=$('legacyNote');
+    const admin = isAdminWalletSync();
+    const visibleLegacy = admin || LEGACY_VISIBLE; // пользователям скрываем, если выключено
+    [legacyRow, legacyTag, legacyNote].forEach(el=>{ if(el) el.style.display = visibleLegacy? 'block' : 'none'; });
+
+    // admin controls visibility
+    const adminBtn = document.getElementById('adminToggleBtn');
+    const adminWrap = document.querySelector('.admin-toggle');
+    if(adminBtn && adminWrap) adminWrap.style.display = admin? 'block' : 'none';
+
+    // prefill admin checkboxes with config
+    const chkV=$('chkLegacyVisible'), chkE=$('chkLegacyEnabled');
+    if(chkV) chkV.checked = !!LEGACY_VISIBLE; if(chkE) chkE.checked = !!LEGACY_ENABLED;
 
     hrJ+=(Math.random()-0.5)*0.1; hrJ=Math.max(-0.5,Math.min(0.5,hrJ));
     const hr=Math.max(0,HR_UI*(1+hrJ/10)).toFixed(2);
@@ -283,314 +325,93 @@ footer{margin:16px 0;color:#9aa0a6}
     $('bar').style.width=Math.min(100,Number(S.accrued*100n/UNIT))+'%';
     $('accp').textContent=S.shares||0;
 
-    // режим администратора
-    const isAdmin = isAdminWalletSync();
-    const btn = document.getElementById('adminSendBtn');
-    if(btn) btn.style.display = isAdmin ? 'inline-block' : 'none';
-
-    // claim to wallet доступен только если контракт поддерживает claimSigned
-    const claimBtn = document.getElementById('claimWalletBtn');
-    if (claimBtn) claimBtn.disabled = !CLAIM_SIGNED_AVAILABLE;
+    // модалка: выбор источника выплат админу
+    const adminBtn2 = $('adminSendBtn');
+    if(adminBtn2) adminBtn2.style.display = admin ? 'inline-block' : 'none';
+    const wrap = $('payoutSourceWrap');
+    if (wrap) {
+      wrap.style.display = admin ? 'block' : 'none';
+      if (admin) fillPayoutSourceSelect();
+    }
 
     const log=$('log');
-    log.innerHTML=[
-      `<div class="empty">Mining log (white = try, green = accepted)</div>`
-    , ...logBuf.slice(-VIEW_MAX).map(e=>`<div class="${e.ok?'ok':'empty'}">${e.html}</div>`).reverse()
-    ].join('');
+    log.innerHTML=[ `<div class="empty">Mining log (white = try, green = accepted)</div>`, ...logBuf.slice(-VIEW_MAX).map(e=>`<div class="${e.ok?'ok':'empty'}">${e.html}</div>`).reverse() ].join('');
   }
 
-  function retarget(){
-    if(S.height<RETARGET_INTERVAL) return;
-    const from=S.chain.length-RETARGET_INTERVAL, first=S.chain[from], last=S.chain.at(-1);
-    const actual=Math.max(1,last.time-first.time), span=BLOCK_TARGET_TIME*RETARGET_INTERVAL;
-    const oldT=compactToTarget(S.bits); let newT=oldT*BigInt(actual)/BigInt(span);
-    const minT=oldT/4n,maxT=oldT*4n; if(newT<minT)newT=minT; if(newT>maxT)newT=maxT;
-    S.bits=targetToCompact(newT);
+  function fillPayoutSourceSelect(){
+    const sel = $('payoutSource'); if(!sel) return; sel.innerHTML='';
+    sel.add(new Option('Main pool','main',true,true));
+    if(LEGACY_ENABLED) sel.add(new Option('Legacy pool','legacy'));
   }
-  function mineBatch(){
-    const prev=S.height?S.chain.at(-1).hash:GENESIS;
-    const tgt=compactToTarget(S.bits), now=Math.floor(Date.now()/1000);
-    for(let i=0;i<TRIES;i++){
-      const nonce=randHex(8), salt=randHex(4), ctr=++S.ctr;
-      const header=JSON.stringify({ver:1,prev,time:now,bits:S.bits,nonce,salt,ctr});
-      const h=k256(header);
-      if(!remember(h)) { i--; continue; }
-      const line=`${h} bits=0x${S.bits.toString(16)} nonce=${nonce} salt=${salt} ctr=${ctr} ← ${prev.slice(0,18)}…`;
-      if(BigInt(h)<=tgt){
-        const blk={idx:S.height+1,time:now,bits:S.bits,nonce,prev,hash:h};
-        S.chain.push(blk); S.height=blk.idx; S.shares=(S.shares||0)+1;
-        S.accrued += BLOCK_REWARD;
-        pushLine(`${line}  (+1 BGB)`,true);
-        $('msg').textContent=`Mined block #${blk.idx} (+1 BGB)`;
-        if(S.height % RETARGET_INTERVAL===0) retarget();
-        incBlocksMined();
-        save(); render();
-        return;
-      } else {
-        pushLine(line,false);
-      }
-    }
-  }
+
+  function retarget(){ if(S.height<RETARGET_INTERVAL) return; const from=S.chain.length-RETARGET_INTERVAL, first=S.chain[from], last=S.chain.at(-1); const actual=Math.max(1,last.time-first.time), span=BLOCK_TARGET_TIME*RETARGET_INTERVAL; const oldT=compactToTarget(S.bits); let newT=oldT*BigInt(actual)/BigInt(span); const minT=oldT/4n,maxT=oldT*4n; if(newT<minT)newT=minT; if(newT>maxT)newT=maxT; S.bits=targetToCompact(newT); }
+
+  function pushLine(html,ok){ logBuf.push({html,ok}); if(logBuf.length>LOG_MAX) logBuf.shift(); }
+
+  function mineBatch(){ const prev=S.height?S.chain.at(-1).hash:GENESIS; const tgt=compactToTarget(S.bits), now=Math.floor(Date.now()/1000); for(let i=0;i<TRIES;i++){ const nonce=randHex(8), salt=randHex(4), ctr=++S.ctr; const header=JSON.stringify({ver:1,prev,time:now,bits:S.bits,nonce,salt,ctr}); const h=k256(header); if(!remember(h)) { i--; continue; } const line=`${h} bits=0x${S.bits.toString(16)} nonce=${nonce} salt=${salt} ctr=${ctr} ← ${prev.slice(0,18)}…`; if(BigInt(h)<=tgt){ const blk={idx:S.height+1,time:now,bits:S.bits,nonce,prev,hash:h}; S.chain.push(blk); S.height=blk.idx; S.shares=(S.shares||0)+1; S.accrued += BLOCK_REWARD; pushLine(`${line}  (+1 BGB)`,true); $('msg').textContent=`Mined block #${blk.idx} (+1 BGB)`; if(S.height % RETARGET_INTERVAL===0) retarget(); incBlocksMined(); save(); render(); if (CAPS.main.claim && S.accrued>=UNIT) setTimeout(()=>{ try{ withdraw(); }catch{} }, 250); return; } else { pushLine(line,false);} } }
+
   function tick(){ if(!S.running) return; mineBatch(); save(); render(); }
 
   // wallet buttons
-  function openInMetaMask(){ window.location.href = 'https://metamask.app.link/dapp/' + location.host + location.pathname; }
-  function openInTrust(){ const dappUrl = encodeURIComponent(location.href); window.location.href = `https://link.trustwallet.com/open_url?source=dapp&url=${dappUrl}`; }
-  async function doConnect(){
-    try{
-      const injected=(window.__bgb_provider||window.ethereum);
-      if(!injected){ alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.'); return; }
-      if(injected.request){ await injected.request({method:'eth_requestAccounts'}); }
-      const p=new ethers.BrowserProvider(injected); const s=await p.getSigner(); const addr=await s.getAddress();
-      load(addr); S.addr=addr; save(); render(); initFirebasePresence();
-      await detectPoolType();
-    }catch(e){ console.error(e); alert('Не удалось подключить кошелёк'); }
-  }
+  function openInMetaMask(){ window.location.href='https://metamask.app.link/dapp/'+location.host+location.pathname; }
+  function openInTrust(){ const dappUrl=encodeURIComponent(location.href); window.location.href=`https://link.trustwallet.com/open_url?source=dapp&url=${dappUrl}`; }
+  async function doConnect(){ try{ const injected=(window.__bgb_provider||window.ethereum); if(!injected){ alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.'); return; } if(injected.request){ await injected.request({method:'eth_requestAccounts'}); } const p=new ethers.BrowserProvider(injected); const s=await p.getSigner(); const addr=await s.getAddress(); load(addr); S.addr=addr; save(); render(); initFirebasePresence(); await detectCaps('main'); await detectCaps('legacy'); }catch(e){ console.error(e); alert('Не удалось подключить кошелёк'); } }
   function start(){ if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; } S.running=true; S.lastMs=Date.now(); $('msg').textContent='Mining…'; }
   function stop(){ S.running=false; $('msg').textContent='Paused'; }
   function toggleLog(){ const el=$('log'); el.style.display=(el.style.display==='none'?'block':'none'); }
 
-  // ====== Claim (пользователь → в Telegram админ)
-  function requestPayout(){
-    if(S.accrued<UNIT){ alert('Нужно минимум 100 BGB для запроса выплаты!'); return; }
-    if(!S.addr){ alert('Подключите кошелёк (Connect)'); return; }
-    const pay=S.accrued-(S.accrued%UNIT), last=S.chain.at(-1);
-    const payload={
-      address:S.addr, session:S.session,
-      amountBGB:(Number(pay)/1e18).toFixed(3), amountWei:pay.toString(),
-      height:S.height, lastBlock:last?last.hash:null, bits:S.bits,
-      fromPool: POOL_ADDRESS, token: TOKEN_ADDRESS,
-      poolBalance: document.getElementById('poolBalance').textContent || '—',
-      ts:new Date().toISOString(),
-      message:`BGB Claim Request\nAddress: ${S.addr}\nSession: ${S.session}\nAmount: ${(Number(pay)/1e18).toFixed(3)} BGB\nHeight: ${S.height}\nBits: 0x${S.bits.toString(16)}\nLast: ${last?last.hash:'-'}\nFrom pool: ${POOL_ADDRESS}\nToken: ${TOKEN_ADDRESS}\nTime: ${new Date().toISOString()}`
-    };
-    $('claimText').textContent=JSON.stringify(payload,null,2);
-    $('claim').style.display='flex';
-    loadPoolBalance().catch(()=>{});
-  }
-  async function copyClaim(){ try{ await navigator.clipboard.writeText($('claimText').textContent); alert('Скопировано! Отправьте админу в Telegram.'); }catch{} }
-  function openTG(){ const txt=encodeURIComponent(`Заявка на выплату BGB:\n\n${$('claimText').textContent}`); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
+  // Fallback payload (для Telegram)
+  function requestPayout(){ const pay=S.accrued-(S.accrued%UNIT), last=S.chain.at(-1); const payload={ address:S.addr, session:S.session, amountBGB:(Number(pay)/1e18).toFixed(3), amountWei:pay.toString(), height:S.height, lastBlock:last?last.hash:null, bits:S.bits, fromPool: ADDR.main, token: TOKEN_ADDRESS, poolBalance: $('poolBalance').textContent || '—', ts:new Date().toISOString() }; $('claimText').textContent=JSON.stringify(payload,null,2); $('claim').style.display='flex'; }
+  async function copyClaim(){ try{ await navigator.clipboard.writeText($('claimText').textContent); alert('Copied'); }catch{} }
+  function openTG(){ const txt=encodeURIComponent(`Заявка на выплату BGB:
+
+${$('claimText').textContent}`); window.open('https://t.me/share/url?url=&text='+txt,'_blank','noopener,noreferrer'); }
   function closeClaim(){ $('claim').style.display='none'; }
 
-  // ===== Admin helpers
-  function isAdminWalletSync(){
-    const addr = (S.addr||'').toLowerCase();
-    if(!addr) return false;
-    if(addr === ADMIN_ADDRESS.toLowerCase()) return true; // статический админ
-    if(POOL_OWNER_CACHE && addr === POOL_OWNER_CACHE.toLowerCase()) return true; // владелец контракта-пула
-    return false;
-  }
-  async function ensureBSC(){
-    if(!window.ethereum) return;
-    const cid = await window.ethereum.request({ method:'eth_chainId' });
-    if(cid !== BSC_CHAIN_ID_HEX){
-      await window.ethereum.request({ method:'wallet_switchEthereumChain', params:[{ chainId: BSC_CHAIN_ID_HEX }] }).catch(()=>{});
-    }
-  }
+  // Admin helpers
+  function isAdminWalletSync(){ const addr=(S.addr||'').toLowerCase(); if(!addr) return false; if(addr===ADMIN_ADDRESS.toLowerCase()) return true; if(CAPS.main.owner && addr===CAPS.main.owner.toLowerCase()) return true; return false; }
+  async function ensureBSC(){ if(!window.ethereum) return; const cid=await window.ethereum.request({ method:'eth_chainId' }); if(cid!==BSC_CHAIN_ID_HEX){ await window.ethereum.request({ method:'wallet_switchEthereumChain', params:[{ chainId: BSC_CHAIN_ID_HEX }] }).catch(()=>{}); } }
 
-  async function detectPoolType(){
-    try{
-      const provider = getReadProvider();
-      const code = await provider.getCode(POOL_ADDRESS);
-      POOL_IS_CONTRACT = !!code && code !== '0x';
-      if(POOL_IS_CONTRACT){
-        try{
-          const c = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, provider);
-          POOL_OWNER_CACHE = await c.owner().catch(()=>null);
-          // проверим поддержку claimSigned
-          try{ await c.nonces("0x0000000000000000000000000000000000000000"); CLAIM_SIGNED_AVAILABLE = true; }catch{ CLAIM_SIGNED_AVAILABLE = false; }
-        }catch{ CLAIM_SIGNED_AVAILABLE = false; }
-      } else {
-        CLAIM_SIGNED_AVAILABLE = false;
-      }
-    }catch(e){ console.warn('detectPoolType error', e); POOL_IS_CONTRACT=false; CLAIM_SIGNED_AVAILABLE=false; }
-    render();
-  }
+  async function detectCaps(which){ const addr = ADDR[which]; try{ const provider = getReadProvider(); const code = await provider.getCode(addr); CAPS[which].isContract = !!code && code !== '0x'; if(CAPS[which].isContract){ try{ const c = new ethers.Contract(addr, POOL_ABI, provider); CAPS[which].owner = await c.owner().catch(()=>null); try{ await c.nonces('0x0000000000000000000000000000000000000000'); CAPS[which].claim = true; }catch{ CAPS[which].claim = false; } }catch{ CAPS[which].claim=false; CAPS[which].owner=null; } } else { CAPS[which].claim=false; CAPS[which].owner=null; } }catch(e){ CAPS[which].isContract=false; CAPS[which].claim=false; CAPS[which].owner=null; } render(); loadBothBalances(); }
 
-  // ===== Admin payout (как раньше)
-  async function adminPayoutFromModal(){
-    try{
-      if(!isAdminWalletSync()){ alert('Admin mode: подключите кошелёк админа пула/контракта.'); return; }
-      await ensureBSC();
+  function toggleAdminPanel(){ const card = document.getElementById('adminPanel'); if(!card) return; card.style.display = (card.style.display==='block') ? 'none' : 'block'; }
 
-      const payloadTxt = $('claimText').textContent.trim();
-      if(!payloadTxt){ alert('Нет данных заявки'); return; }
-      let data;
-      try{ data = JSON.parse(payloadTxt); }catch{ alert('Неверный формат заявки'); return; }
-      const to = (data.address||'').trim();
-      const amountWeiStr = (data.amountWei||'').trim();
-      if(!to || !amountWeiStr){ alert('В заявке нет адреса или суммы'); return; }
+  async function adminSaveConfig(){ try{ if(!isAdminWalletSync()) { alert('Admin only'); return; } const { db, ref, set } = window.__bgb_firebase || {}; if(!db) { alert('Firebase недоступен'); return; } const vis = !!document.getElementById('chkLegacyVisible').checked; const en  = !!document.getElementById('chkLegacyEnabled').checked; await set(ref(db,'config/legacyVisible'), vis); await set(ref(db,'config/legacyEnabled'), en); alert('Сохранено'); }catch(e){ alert('Ошибка сохранения конфигурации'); console.error(e); } }
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer   = await provider.getSigner();
+  async function adminMigrate(fromKey, toKey){ try{ if(!isAdminWalletSync()) { alert('Admin only'); return; } const amtStr = (document.getElementById('migrateAmt').value||'').trim(); if(!amtStr) { alert('Введите сумму'); return; } const amount = BigInt(Math.floor(Number(amtStr)*1e18)); if(amount<=0n) { alert('Неверная сумма'); return; } const fromAddr = ADDR[fromKey], toAddr = ADDR[toKey]; const provider=new ethers.BrowserProvider(window.ethereum); const signer=await provider.getSigner(); const fromCaps = CAPS[fromKey]; if(!fromCaps.isContract){ alert('Источник не контракт — миграция невозможна (нужен контракт с rescue/execute).'); return; } const pool=new ethers.Contract(fromAddr, POOL_ABI, signer); const tokenIF=new ethers.Interface(["function transfer(address,uint256) returns (bool)"]); const calldata=tokenIF.encodeFunctionData('transfer',[toAddr, amount]); let tx; try{ tx=await pool.rescueERC20(TOKEN_ADDRESS, toAddr, amount); }catch(e1){ try{ tx=await pool.execute(TOKEN_ADDRESS, 0, calldata); }catch(e2){ console.error('migrate failed',{e1,e2}); alert('Контракт не поддерживает rescue/execute — миграция недоступна.'); return; } } $('msg').textContent='Migrating: '+tx.hash; const rc=await tx.wait(); $('msg').textContent='Migration confirmed in block '+rc.blockNumber; await loadBothBalances(); alert('Миграция выполнена: '+tx.hash); }catch(e){ console.error(e); alert('Ошибка миграции: '+(e?.shortMessage||e?.message||e)); } }
 
-      if(!POOL_IS_CONTRACT){
-        const token = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
-        const tx = await token.transfer(to, BigInt(amountWeiStr));
-        $('msg').textContent = 'Sending payout tx: ' + tx.hash;
-        const rcpt = await tx.wait();
-        $('msg').textContent = 'Payout confirmed in block ' + rcpt.blockNumber;
-        await loadPoolBalance();
-        alert('Выплата отправлена: ' + tx.hash);
-        closeClaim();
-        return;
-      }
+  async function adminGenerateVoucher(){ try{ if(!isAdminWalletSync()) { alert('Admin only'); return; } await ensureBSC(); const to = (document.getElementById('vTo').value||'').trim(); const amt = Number(document.getElementById('vAmt').value||'0'); const mins = Math.max(1, Number(document.getElementById('vMins').value||'60')); if(!to || !to.startsWith('0x')){ alert('Адрес 0x…'); return; } if(!(amt>0)) { alert('Сумма > 0'); return; } const amountWei = BigInt(Math.floor(amt*1e18)); const provider=new ethers.BrowserProvider(window.ethereum); const signer=await provider.getSigner(); const pool=new ethers.Contract(ADDR.main, ["function nonces(address) view returns (uint256)"], provider); const nonce=await pool.nonces(to); const deadline=Math.floor(Date.now()/1000)+mins*60; const domain={ name:'BGBMiner', version:'1', chainId:56, verifyingContract:ADDR.main }; const types={ Claim:[ {name:'to',type:'address'},{name:'amount',type:'uint256'},{name:'nonce',type:'uint256'},{name:'deadline',type:'uint256'} ]}; const value={ to, amount: amountWei.toString(), nonce: Number(nonce), deadline }; const sig = await signer.signTypedData(domain, types, value); const out = { domain, types, value, sig }; document.getElementById('voucherOut').value = JSON.stringify(out, null, 2); alert('Ваучер готов — можно копировать'); }catch(e){ console.error(e); alert('Ошибка подписи: '+(e?.shortMessage||e?.message||e)); } }
 
-      const pool = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, signer);
-      const token = new ethers.Interface(TOKEN_ABI);
-      const calldata = token.encodeFunctionData('transfer', [to, BigInt(amountWeiStr)]);
+  async function adminCopyVoucher(){ try{ const el=document.getElementById('voucherOut'); if(!el || !el.value){ alert('Нет данных'); return; } await navigator.clipboard.writeText(el.value); alert('Скопировано'); }catch(e){ console.error(e); }}
 
-      let tx;
-      try { tx = await pool.rescueERC20(TOKEN_ADDRESS, to, BigInt(amountWeiStr)); }
-      catch (e1) {
-        try { tx = await pool.execute(TOKEN_ADDRESS, 0, calldata); }
-        catch (e2) { console.error('payout failed', {e1, e2}); alert('Контракт пула не поддерживает rescueERC20/execute. Нужен апгрейд.'); return; }
-      }
+  // Admin payout (источник выбирается админом)
+  async function adminPayoutFromModal(){ try{ if(!isAdminWalletSync()){ alert('Admin only'); return; } await ensureBSC(); const txt=$('claimText').textContent.trim(); if(!txt){ alert('Нет данных заявки'); return; } let data; try{ data=JSON.parse(txt);}catch{ alert('Неверный формат заявки'); return; } const to=(data.address||'').trim(); const amountWeiStr=(data.amountWei||'').trim(); if(!to || !amountWeiStr){ alert('Нет адреса/суммы'); return; } const srcSel=$('payoutSource'); const source=(srcSel && srcSel.value)||'main'; const poolAddr = ADDR[source]; const provider=new ethers.BrowserProvider(window.ethereum); const signer=await provider.getSigner(); if(!CAPS[source].isContract){ const token=new ethers.Contract(TOKEN_ADDRESS,["function transfer(address,uint256) returns (bool)"], signer); const tx=await token.transfer(to, BigInt(amountWeiStr)); $('msg').textContent='Sending payout tx: '+tx.hash; const rcpt=await tx.wait(); $('msg').textContent='Payout confirmed in block '+rcpt.blockNumber; await loadBothBalances(); alert('Выплата отправлена: '+tx.hash); closeClaim(); return; } const pool=new ethers.Contract(poolAddr, POOL_ABI, signer); const tokenIF=new ethers.Interface(["function transfer(address,uint256) returns (bool)"]); const calldata=tokenIF.encodeFunctionData('transfer',[to,BigInt(amountWeiStr)]); let tx; try{ tx=await pool.rescueERC20(TOKEN_ADDRESS,to,BigInt(amountWeiStr)); }catch(e1){ try{ tx=await pool.execute(TOKEN_ADDRESS,0,calldata);}catch(e2){ console.error('payout failed',{e1,e2}); alert('Контракт не поддерживает rescue/execute.'); return; } } $('msg').textContent='Sending payout tx: '+tx.hash; const rcpt=await tx.wait(); $('msg').textContent='Payout confirmed in block '+rcpt.blockNumber; await loadBothBalances(); alert('Выплата отправлена: '+tx.hash); closeClaim(); }catch(e){ console.error(e); alert('Ошибка выплаты: '+(e?.shortMessage||e?.message||e)); } }
 
-      $('msg').textContent = 'Sending payout tx: ' + tx.hash;
-      const rcpt = await tx.wait();
-      $('msg').textContent = 'Payout confirmed in block ' + rcpt.blockNumber;
-      await loadPoolBalance();
-      alert('Выплата отправлена: ' + tx.hash);
-      closeClaim();
-    }catch(e){ console.error(e); alert('Ошибка выплаты: ' + (e?.shortMessage || e?.message || e)); }
-  }
-
-  // ===== Claim to wallet (pay gas) — пользовательская транзакция
-  let _pendingVoucher = null; // {to, amount, nonce, deadline}
-
+  // Unified WITHDRAW (только MAIN)
+  let _pendingVoucher=null;
   function openSigModal(){ $('sigModal').style.display='flex'; }
   function closeSigModal(){ $('sigModal').style.display='none'; }
 
-  async function claimToWallet(){
-    try{
-      if(!CLAIM_SIGNED_AVAILABLE){ alert('Контракт пула не поддерживает claimSigned — нужен апгрейд.'); return; }
-      if(!S.addr){ alert('Подключите кошелёк'); return; }
-      await ensureBSC();
+  async function withdraw(){ if(!S.addr){ alert('Подключите кошелёк'); return; } if(S.accrued < UNIT){ alert('Нужно минимум '+String(MIN_PAYOUT_BGB)+' BGB'); return; } if(CAPS.main.claim){ await claimToWallet(); } else { requestPayout(); alert('Самовывод недоступен для текущего MAIN пула.'); } }
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer   = await provider.getSigner();
-      const pool     = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, signer);
+  async function claimToWallet(){ try{ await ensureBSC(); const provider=new ethers.BrowserProvider(window.ethereum); const signer=await provider.getSigner(); const pool=new ethers.Contract(ADDR.main, POOL_ABI, signer); const pay=S.accrued-(S.accrued%UNIT); const nonce=await pool.nonces(S.addr); const deadline=Math.floor(Date.now()/1000)+3600; const value={ to:S.addr, amount: pay.toString(), nonce: Number(nonce), deadline }; _pendingVoucher=value; try{ const domain={ name:'BGBMiner', version:'1', chainId:56, verifyingContract:ADDR.main }; const types={ Claim:[ {name:'to',type:'address'},{name:'amount',type:'uint256'},{name:'nonce',type:'uint256'},{name:'deadline',type:'uint256'} ]}; const res=await fetch('/api/bgb/claim-sign',{ method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({domain,types,value}) }); if(!res.ok) throw new Error('no backend'); const {sig}=await res.json(); await submitClaimWithSig(sig,pool,value); return; }catch{ openSigModal(); } }catch(e){ console.error(e); alert('Claim error: '+(e?.shortMessage||e?.message||e)); } }
 
-      const pay = S.accrued - (S.accrued % UNIT);
-      if (pay <= 0n) { alert('Недостаточно для выплаты (минимум 100 BGB)'); return; }
+  async function useSignatureFromModal(){ try{ const sig=($('sigInput').value||'').trim(); if(!sig || !sig.startsWith('0x')){ alert('Вставьте подпись 0x…'); return;} const provider=new ethers.BrowserProvider(window.ethereum); const signer=await provider.getSigner(); const pool=new ethers.Contract(ADDR.main, POOL_ABI, signer); await submitClaimWithSig(sig,pool,_pendingVoucher); closeSigModal(); }catch(e){ console.error(e); alert('Signature/claim error: '+(e?.shortMessage||e?.message||e)); } }
 
-      const nonce = await pool.nonces(S.addr);
-      const deadline = Math.floor(Date.now()/1000) + 3600; // 1 час
+  async function submitClaimWithSig(sig,pool,value){ if(!value){ alert('Нет данных ваучера'); return;} const {v,r,s}=ethers.Signature.from(sig); const tx=await pool.claimSigned(value.to,value.amount,value.deadline,v,r,s); $('msg').textContent='Submitting claim tx: '+tx.hash; const rc=await tx.wait(); $('msg').textContent='Claim confirmed in block '+rc.blockNumber; S.accrued -= BigInt(value.amount); save(); render(); loadBothBalances(); alert('Выплата отправлена: '+tx.hash); }
 
-      const value = { to: S.addr, amount: pay.toString(), nonce: Number(nonce), deadline };
-      _pendingVoucher = value; // сохраним для ручного ввода подписи
+  // Балансы
+  let _tokenDecimals=18;
+  function getReadProvider(){ if(window.ethereum){ try{ return new ethers.BrowserProvider(window.ethereum);}catch{} } return new ethers.JsonRpcProvider('https://bsc-dataseed.binance.org/'); }
+  async function loadBothBalances(){ try{ const provider=getReadProvider(); const sp=(provider.getSigner? await provider.getSigner().catch(()=>provider):provider); const token=new ethers.Contract(TOKEN_ADDRESS,["function balanceOf(address) view returns (uint256)","function decimals() view returns (uint8)"], sp); try{ _tokenDecimals=Number(await token.decimals()); }catch{} const [bMain,bLegacy]=await Promise.all([ token.balanceOf(ADDR.main).catch(()=>0n), token.balanceOf(ADDR.legacy).catch(()=>0n) ]); $('poolBalance').textContent=fmtUnitsBI(bMain,_tokenDecimals)+' BGB'; $('legacyBalance').textContent=fmtUnitsBI(bLegacy,_tokenDecimals)+' BGB'; }catch(e){ console.error('balance error:',e); $('poolBalance').textContent='—'; $('legacyBalance').textContent='—'; } }
 
-      // Попытка получить подпись с бэкенда (если настроен)
-      try {
-        const domain = { name: 'BGBMiner', version: '1', chainId: 56, verifyingContract: POOL_ADDRESS };
-        const types  = { Claim: [
-          { name: 'to', type: 'address' },
-          { name: 'amount', type: 'uint256' },
-          { name: 'nonce', type: 'uint256' },
-          { name: 'deadline', type: 'uint256' },
-        ]};
-        const res = await fetch('/api/bgb/claim-sign', {
-          method: 'POST', headers: { 'content-type':'application/json' }, body: JSON.stringify({ domain, types, value })
-        });
-        if (!res.ok) throw new Error('no backend');
-        const { sig } = await res.json();
-        await submitClaimWithSig(sig, pool, value);
-        return;
-      } catch(e){
-        // Бэкенда нет — просим вставить подпись ваучера вручную
-        openSigModal();
-      }
-    }catch(e){ console.error(e); alert('Claim error: ' + (e?.shortMessage || e?.message || e)); }
-  }
-
-  async function useSignatureFromModal(){
-    try{
-      const sig = (document.getElementById('sigInput').value||'').trim();
-      if(!sig || !sig.startsWith('0x')){ alert('Вставьте корректную подпись 0x…'); return; }
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer   = await provider.getSigner();
-      const pool     = new ethers.Contract(POOL_ADDRESS, POOL_MINER_ABI, signer);
-      await submitClaimWithSig(sig, pool, _pendingVoucher);
-      closeSigModal();
-    }catch(e){ console.error(e); alert('Signature/claim error: ' + (e?.shortMessage || e?.message || e)); }
-  }
-
-  async function submitClaimWithSig(sig, pool, value){
-    if(!value){ alert('Нет данных ваучера'); return; }
-    const { v, r, s } = ethers.Signature.from(sig);
-    const tx = await pool.claimSigned(value.to, value.amount, value.deadline, v, r, s);
-    $('msg').textContent = 'Submitting claim tx: ' + tx.hash;
-    const rc = await tx.wait();
-    $('msg').textContent = 'Claim confirmed in block ' + rc.blockNumber;
-    S.accrued -= BigInt(value.amount);
-    save(); render(); loadPoolBalance();
-    alert('Выплата отправлена: ' + tx.hash);
-  }
-
-  // ===== Баланс пула (читает баланс на адресе пула — контракта)
-  let _tokenDecimals = 18;
-  function getReadProvider(){
-    if (window.ethereum) { try { return new ethers.BrowserProvider(window.ethereum); } catch {} }
-    return new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
-  }
-  async function loadPoolBalance(){
-    try{
-      const provider = getReadProvider();
-      const signerOrProvider = (provider.getSigner ? await provider.getSigner().catch(()=>provider) : provider);
-      const token = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signerOrProvider);
-      try { _tokenDecimals = Number(await token.decimals()); } catch {}
-      const raw = await token.balanceOf(POOL_ADDRESS);
-      $('poolBalance').textContent = fmtUnitsBI(raw, _tokenDecimals) + " BGB";
-    }catch(e){ console.error("pool balance error:", e); $('poolBalance').textContent = "—"; }
-  }
-
-  // ---- export handlers to window (for inline onclick) ----
-  Object.assign(window, {
-    openInMetaMask,
-    openInTrust,
-    doConnect,
-    start,
-    stop,
-    toggleLog,
-    requestPayout,
-    copyClaim,
-    openTG,
-    closeClaim,
-    adminPayoutFromModal,
-    claimToWallet,
-    useSignatureFromModal,
-    closeSigModal,
-  });
-
-  // basic self-tests (console) — ensures handlers are present
-  (function runSelfTests(){
-    try{
-      const fns = ['claimToWallet','requestPayout','adminPayoutFromModal','openTG'];
-      const missing = fns.filter(n=> typeof window[n] !== 'function');
-      if(missing.length){ console.error('Self-test failed: missing', missing); $('msg').textContent = 'Init error: missing '+missing.join(', '); }
-      else { console.log('Self-test OK: handlers ready'); }
-    }catch(e){ console.error('Self-test error', e); }
-  })();
+  // export
+  Object.assign(window,{ openInMetaMask, openInTrust, doConnect, start, stop, toggleLog, withdraw, copyClaim, openTG, closeClaim, adminPayoutFromModal, useSignatureFromModal, closeSigModal, toggleAdminPanel, adminSaveConfig, adminMigrate, adminGenerateVoucher, adminCopyVoucher });
 
   // boot
-  load(null);
-  pushLine('Mining log (white = try, green = accepted)',false);
-  render();
-  setInterval(tick,500);
-
-  if (window.ethereum) {
-    window.ethereum.request({method:'eth_accounts'})
-      .then(acc=>{
-        if(acc && acc[0]){ load(acc[0]); S.addr=acc[0]; render(); initFirebasePresence(); detectPoolType(); }
-      }).catch(()=>{});
-    window.ethereum.on?.('accountsChanged', ()=>{ if(S.addr){ doConnect(); } });
-    window.ethereum.on?.('chainChanged', ()=>{ loadPoolBalance(); detectPoolType(); });
-  }
-
-  loadPoolBalance();
-  detectPoolType();
-  setInterval(loadPoolBalance, 30000);
+  load(null); pushLine('Mining log (white = try, green = accepted)',false); render(); setInterval(tick,500);
+  if(window.ethereum){ window.ethereum.request({method:'eth_accounts'}).then(acc=>{ if(acc && acc[0]){ load(acc[0]); S.addr=acc[0]; render(); initFirebasePresence(); detectCaps('main'); detectCaps('legacy'); } }).catch(()=>{}); window.ethereum.on?.('accountsChanged',()=>{ if(S.addr){ doConnect(); } }); window.ethereum.on?.('chainChanged',()=>{ loadBothBalances(); detectCaps('main'); detectCaps('legacy'); }); }
+  loadBothBalances(); detectCaps('main'); detectCaps('legacy'); setInterval(loadBothBalances,30000);
   </script>
 </body>
 </html>
