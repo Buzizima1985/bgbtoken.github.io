@@ -7,32 +7,47 @@
 <link rel="icon" href="logo.png"/>
 
 <style>
-:root{--accent:#e60000;--accent2:#cc0000;--ok:#00ff88;--muted:#9aa0a6}
+:root{--accent:#e60000;--accent2:#cc0000;--ok:#00ff88;--muted:#9aa0a6;--bg:#0b0f14;--card:#101418;--border:#1f2531;--ink:#ffffff;--ink-2:#eaeaea}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#0b0f14;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
 .overlay{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:22px 14px;gap:12px}
-h1{font-weight:800;font-size:44px;background:linear-gradient(90deg,#ff7a00,#ff3b3b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.subtitle{color:#eaeaea}
+h1{font-weight:800;font-size:44px;background:linear-gradient(92deg,#ff914d 0%,#ff4d4d 35%,#ff1f1f 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:0.5px}
+.subtitle{color:var(--ink-2)}
 .buttons{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
-.btn{padding:12px 20px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 0 10px #e60000;cursor:pointer;text-decoration:none;display:inline-flex;gap:8px;align-items:center}
+.btn{padding:12px 20px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 0 10px #e60000;cursor:pointer;text-decoration:none;display:inline-flex;gap:8px;align-items:center;transition:transform .15s ease, box-shadow .2s ease, background .2s ease}
 .btn[disabled]{opacity:.6;cursor:not-allowed}
-.btn:hover{background:var(--accent2);transform:translateY(-1px)}
+.btn:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 0 14px #e60000}
+.btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.btn.secondary{background:#0f1720;border:1px solid #263040;box-shadow:none}
+.btn.secondary:hover{background:#131d28}
 
-.card{width:100%;max-width:1000px;background:#101418;border:1px solid #1f2531;border-radius:18px;padding:16px 18px;box-shadow:0 4px 30px rgba(0,0,0,.35)}
+.card{width:100%;max-width:1000px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.35);backdrop-filter:saturate(1.1) blur(2px)}
 .hdr{font-weight:800;font-size:20px;margin-bottom:6px}
 .row{font-size:14px;margin:6px 0;opacity:.95}
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 .tag{background:#131a23;border:1px solid #263040;color:#cbd5e1;padding:4px 8px;border-radius:999px;font-size:12px}
 .tag.ok{border-color:#00ff88;color:#00ff88}
-.list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-height:260px;overflow:auto;background:#0b0f14;border:1px solid #223043;border-radius:12px;padding:10px;margin-top:8px}
-.list .ok{color:#00ff88}
-.list .empty{color:#e5e7eb}
-footer{margin:16px 0;color:#9aa0a6}
+.badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px}
+.badge{padding:6px 10px;border-radius:999px;border:1px solid #263040;background:#0d141c;font-size:12px;color:#d7dee7}
+.badge.em{border-color:#ff6a6a;background:#1a0f12;color:#ffdede}
+footer{margin:18px 0;color:#9aa0a6}
 
-/* Small helpers */
+/* Helpers */
 .code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b0f14;border:1px solid #223043;border-radius:10px;padding:8px 10px;display:inline-block}
 .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .box{background:#0d141c;border:1px solid #263040;border-radius:12px;padding:12px}
+.copy{margin-left:8px;padding:8px 10px;border-radius:10px;border:1px solid #2a3240;background:#0b0f14;color:#e5e7eb;cursor:pointer}
+.copy:hover{background:#0e1319}
+.toast{display:none;position:fixed;right:14px;bottom:14px;background:#0b0f14;border:1px solid #263040;color:#e5e7eb;padding:10px 12px;border-radius:10px;opacity:0;transform:translateY(6px);transition:.2s;z-index:60}
+.toast.show{display:block;opacity:1;transform:translateY(0)}
+
+/* Sticky CTA for mobile */
+.sticky-cta{position:fixed;left:0;right:0;bottom:10px;display:none;gap:8px;justify-content:center;z-index:40}
+.sticky-cta .btn{border-radius:12px;padding:10px 14px}
+@media (max-width:640px){.sticky-cta{display:flex}}
+
+:root{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){:root{scroll-behavior:auto}.btn{transition:none}}
 </style>
 </head>
 <body>
@@ -40,53 +55,108 @@ footer{margin:16px 0;color:#9aa0a6}
     <h1>BGB Token</h1>
     <div class="subtitle">🎁 Получи <b>300 BGB</b> прямо сейчас на свой кошелёк</div>
 
-    <div class="buttons">
-      <a class="btn" href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">📄 BSC Scan</a>
-      <a class="btn" href="https://t.me/Makkan1985" target="_blank" rel="noopener">💬 Telegram</a>
-      <button class="btn" onclick="openInMetaMask()">🦊 Open in MetaMask</button>
-      <button class="btn" onclick="openInTrust()">📱 Open in Trust</button>
-      <button class="btn" onclick="doConnect()">🪙 Connect Wallet</button>
-      <a class="btn" href="https://pancakeswap.finance/add/BNB/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C?chain=bsc" target="_blank" rel="noopener">💧 Донат на поддержку Ликвидности</a>
-      <a class="btn" href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">🛒 Buy on PancakeSwap</a>
-      <a class="btn" href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank" rel="noopener">🧭 GeckoTerminal</a>
+    <div class="badges">
+      <span class="badge em">BSC • BEP‑20</span>
+      <span class="badge">Contract Verified</span>
+      <a class="badge" href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">Liquidity Locked</a>
     </div>
 
-    <!-- ЗАМЕНА блока "BGB Mining" на информационный блок -->
+    <div class="buttons">
+      <a class="btn" aria-label="Open BscScan" href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">📄 BSC Scan</a>
+      <a class="btn" aria-label="Open Telegram" href="https://t.me/Makkan1985" target="_blank" rel="noopener">💬 Telegram</a>
+      <button class="btn" aria-label="Open in MetaMask" onclick="openInMetaMask()">🦊 Open in MetaMask</button>
+      <button class="btn" aria-label="Open in Trust Wallet" onclick="openInTrust()">📱 Open in Trust</button>
+      <button class="btn" aria-label="Connect Wallet" onclick="doConnect()">🪙 Connect Wallet</button>
+      <a class="btn secondary" aria-label="Donate Liquidity" href="https://pancakeswap.finance/add/BNB/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C?chain=bsc" target="_blank" rel="noopener">💧 Донат на поддержку Ликвидности</a>
+      <a class="btn" aria-label="Buy on PancakeSwap" href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">🛒 Buy on PancakeSwap</a>
+      <a class="btn secondary" aria-label="GeckoTerminal chart" href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank" rel="noopener">🧭 GeckoTerminal</a>
+      <a class="btn secondary" aria-label="Liquidity lock certificate" href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">🔒 Liquidity Lock (Mudra)</a>
+    </div>
+
     <div class="card">
       <div class="hdr">О токене BGB</div>
-      <div class="row">Контракт: <span class="code">0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</span> (BSC)</div>
+      <div class="row">Контракт: <span id="contractAddr" class="code">0xFeF80dbC16251862b82286864D77aFA08ECBcb5C</span> (BSC)
+        <button class="copy" onclick="copyContract()">Копировать</button>
+      </div>
       <div class="row">Как добавить в кошелёк:
-        <ol style="margin-left:18px; margin-top:6px; line-height:1.6">
-          <li>Открой MetaMask → <b>Добавить токен</b> → вставь адрес контракта выше.</li>
-          <li>В Trust Wallet перейди в поиск коинов → включи добавление по контракту → вставь адрес.</li>
+        <ol style="margin-left:18px; margin-top:6px; line-height:1.7">
+          <li>В MetaMask → <b>Добавить токен</b> → вставь адрес контракта.</li>
+          <li>В Trust Wallet → поиск монет → добавление по контракту.</li>
         </ol>
       </div>
-      <div class="grid" style="margin-top:8px">
+      <div class="grid">
         <div class="box">
-          <div class="hdr" style="font-size:16px">Где посмотреть</div>
-          <ul style="margin-left:18px; line-height:1.8">
-            <li><a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">BscScan</a> — контракт, держатели и транзакции.</li>
+          <div class="hdr">Где посмотреть</div>
+          <ul>
+            <li><a href="https://bscscan.com/token/0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">BscScan</a> — контракт, держатели, транзакции.</li>
             <li><a href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank" rel="noopener">GeckoTerminal</a> — график цены и ликвидность.</li>
           </ul>
         </div>
         <div class="box">
-          <div class="hdr" style="font-size:16px">Где купить</div>
-          <ul style="margin-left:18px; line-height:1.8">
+          <div class="hdr">Где купить</div>
+          <ul>
             <li><a href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">PancakeSwap</a> — пара BGB/BNB.</li>
-            <li>Нет BNB на газ? Пополни BNB (BEP-20) и повтори обмен.</li>
+            <li>Не забудь пополнить BNB (BEP-20) для оплаты газа.</li>
           </ul>
         </div>
         <div class="box">
-          <div class="hdr" style="font-size:16px">Поддержка ликвидности</div>
-          <p style="margin-top:6px; color:#cbd5e1">Хочешь поддержать пул? Жми кнопку «Донат на поддержку Ликвидности» — добавь BGB/BNB в пул на PancakeSwap. Это помогает узкому спреду и стабильности цены.</p>
+          <div class="hdr">Поддержка ликвидности</div>
+          <p>Хочешь помочь сообществу? Добавь BGB/BNB в пул через «Донат на поддержку Ликвидности». Это укрепляет рынок и снижает спред.</p>
         </div>
+        <div class="box">
+          <div class="hdr">Прозрачность</div>
+          <p>Ликвидность заморожена: <a href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">Сертификат Mudra</a>. Проверяй перед взаимодействием — это гарантия безопасности.</p>
+        </div>
+      </div>
+      <div class="tagline">
+        <span class="tag">BSC • BEP-20</span>
+        <span class="tag">Verified Contract</span>
+        <span class="tag">Liquidity Locked</span>
       </div>
     </div>
 
     <footer>© 2025 BGB Token</footer>
   </div>
 
-  <!-- Минимальные функции для кнопок -->
+  <div id="toast" class="toast" role="status" aria-live="polite">Скопировано</div>
+  <!-- Sticky CTA (mobile) -->
+  <div class="sticky-cta" aria-label="Quick actions">
+    <a class="btn" href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">🛒 Buy</a>
+    <a class="btn secondary" href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0fbeb068FE405A" target="_blank" rel="noopener">🔒 Lock</a>
+    <a class="btn secondary" href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank" rel="noopener">📈 Chart</a>
+  </div>
+
+  <script>
+    function toast(msg){
+      const t=document.getElementById('toast');
+      if(!t) return;
+      t.textContent=msg||'Готово';
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'),1500)
+    }
+
+    // FIXED: async + try/catch to avoid stray catch syntax errors
+    async function copyContract(){
+      try{
+        const el=document.getElementById('contractAddr');
+        const addr=el?el.textContent.trim():'0xFeF80dbC16251862b82286864D77aFA08ECBcb5C';
+        await navigator.clipboard.writeText(addr);
+        toast('Адрес скопирован');
+      }catch(e){
+        toast('Скопируйте вручную');
+      }
+    }
+
+    // lightweight self-tests (won't affect UI)
+    document.addEventListener('DOMContentLoaded',()=>{
+      const expected='0xFeF80dbC16251862b82286864D77aFA08ECBcb5C';
+      console.assert(document.getElementById('contractAddr')?.textContent?.includes(expected),'[TEST] Contract address not rendered');
+      console.assert(document.querySelector('a[href*="bscscan.com/token/"]'), '[TEST] BscScan link missing');
+      console.assert(document.querySelector('a[href*="pancakeswap.finance/swap"]'), '[TEST] PancakeSwap link missing');
+      console.assert(document.querySelector('a[href*="mudra.website/"]'), '[TEST] Mudra link missing');
+    });
+  </script>
+
   <script>
     function openInMetaMask(){
       try{ window.location.href='https://metamask.app.link/dapp/'+location.host+location.pathname; }catch(e){ alert('Откройте сайт внутри MetaMask Browser.'); }
