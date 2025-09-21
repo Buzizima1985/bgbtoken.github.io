@@ -26,13 +26,14 @@ h1{font-weight:800;font-size:44px;background:linear-gradient(92deg,#ff914d 0%,#f
 .row{font-size:14px;margin:6px 0;opacity:.95}
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 .tag{background:#131a23;border:1px solid #263040;color:#cbd5e1;padding:4px 8px;border-radius:999px;font-size:12px}
-.tag.ok{border-color:#00ff88;color:#00ff88}
+.tag.ok{background:#00ff88;color:#000;border-color:#00cc66;font-weight:700}
+.tag.em{border-color:#ff6a6a;background:#1a0f12;color:#ffdede;font-weight:700}
 .badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px}
 .badge{padding:6px 10px;border-radius:999px;border:1px solid #263040;background:#0d141c;font-size:12px;color:#d7dee7}
-.badge.em{border-color:#ff6a6a;background:#1a0f12;color:#ffdede}
+.badge.ok{background:#00ff88;color:#000;border-color:#00cc66;font-weight:700}
+.badge.em{border-color:#ff6a6a;background:#1a0f12;color:#ffdede;font-weight:700}
 footer{margin:18px 0;color:#9aa0a6}
 
-/* Helpers */
 .code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b0f14;border:1px solid #223043;border-radius:10px;padding:8px 10px;display:inline-block}
 .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .box{background:#0d141c;border:1px solid #263040;border-radius:12px;padding:12px}
@@ -41,7 +42,6 @@ footer{margin:18px 0;color:#9aa0a6}
 .toast{display:none;position:fixed;right:14px;bottom:14px;background:#0b0f14;border:1px solid #263040;color:#e5e7eb;padding:10px 12px;border-radius:10px;opacity:0;transform:translateY(6px);transition:.2s;z-index:60}
 .toast.show{display:block;opacity:1;transform:translateY(0)}
 
-/* Sticky CTA for mobile */
 .sticky-cta{position:fixed;left:0;right:0;bottom:10px;display:none;gap:8px;justify-content:center;z-index:40}
 .sticky-cta .btn{border-radius:12px;padding:10px 14px}
 @media (max-width:640px){.sticky-cta{display:flex}}
@@ -53,12 +53,12 @@ footer{margin:18px 0;color:#9aa0a6}
 <body>
   <div class="overlay">
     <h1>BGB Token</h1>
-    <div class="subtitle">🎁 Получи <b>300 BGB</b> прямо сейчас на свой кошелёк</div>
 
     <div class="badges">
-      <span class="badge em">BSC • BEP‑20</span>
-      <span class="badge">Contract Verified</span>
-      <a class="badge" href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">Liquidity Locked</a>
+      <span class="badge ok">BSC • BEP‑20</span>
+      <span class="badge ok">Contract Verified</span>
+      <a class="badge ok" href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">Liquidity Locked</a>
+      <a class="badge em" href="https://bscscan.com/address/0x01C08edE0510Fd2F72f9e0C7056380f54Eb443e6" target="_blank" rel="noopener">Старый пул (BscScan)</a>
     </div>
 
     <div class="buttons">
@@ -84,6 +84,7 @@ footer{margin:18px 0;color:#9aa0a6}
           <li>В Trust Wallet → поиск монет → добавление по контракту.</li>
         </ol>
       </div>
+
       <div class="grid">
         <div class="box">
           <div class="hdr">Где посмотреть</div>
@@ -106,12 +107,46 @@ footer{margin:18px 0;color:#9aa0a6}
         <div class="box">
           <div class="hdr">Прозрачность</div>
           <p>Ликвидность заморожена: <a href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">Сертификат Mudra</a>. Проверяй перед взаимодействием — это гарантия безопасности.</p>
+          <div style="margin-top:12px">
+            <!-- HostCiti.net -->
+            <a href="http://hostciti.net/" title="hostciti.net" target="_blank" onclick="this.href='http://hostciti.net/stat/?ch=stat'+'&r='+escape(window.location.href.slice(7));" >
+            <script type="text/javascript" language="javascript"><!--
+            Coun='<img src="http://hostciti.net/stat/stat.php?i=2&col=4d95bf&tc=ffffff';
+            iD=document; Coun+='&d='+(screen.colorDepth?screen.colorDepth:screen.pixelDepth)
+            +"&w="+screen.width+'&h='+screen.height;
+            iH=window.location.href.slice(7);
+            Coun+='&r='+escape(iH);
+            Coun+='&n='+escape(iD.referrer.slice(7));
+            iD.write(Coun+'" width="88" height="31" border="0" />');
+            </script></a>
+            <!-- End of HostCiti.net counter -->
+          </div>
         </div>
       </div>
-      <div class="tagline">
-        <span class="tag">BSC • BEP-20</span>
-        <span class="tag">Verified Contract</span>
-        <span class="tag">Liquidity Locked</span>
+
+      <div class="box" style="margin-top:12px">
+        <div class="hdr">Токеномика и обращение</div>
+        <ul style="line-height:1.7">
+          <li><b>Total Supply:</b> 1,000,000 BGB</li>
+          <li>
+            <b>Исключено из обращения (burn‑like):</b>
+            <ul style="margin-left:18px">
+              <li>
+                <b>150,099 BGB</b> — старый пул майнинга, средства недоступны к выводу →
+                <a href="https://bscscan.com/address/0x01C08edE0510Fd2F72f9e0C7056380f54Eb443e6" target="_blank" rel="noopener">контракт старого пула</a>
+              </li>
+            </ul>
+          </li>
+          <li><b>Примечание:</b> замороженные LP‑токены <i>не уменьшают</i> обращение, но защищают ликвидность от вывода.</li>
+          <li style="margin-top:6px"><b>Circulating Supply (оценка):</b> Total − 150,099 − (доп.локи владельца по данным Mudра) = <i>см. актуальные данные в отчётах</i>.</li>
+        </ul>
+      </div>
+
+      <div class="tagline" style="margin-top:10px">
+        <span class="tag ok">BSC • BEP-20</span>
+        <span class="tag ok">Verified Contract</span>
+        <span class="tag ok">Liquidity Locked</span>
+        <span class="tag em">Burn‑like: старый пул</span>
       </div>
     </div>
 
@@ -119,10 +154,9 @@ footer{margin:18px 0;color:#9aa0a6}
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite">Скопировано</div>
-  <!-- Sticky CTA (mobile) -->
   <div class="sticky-cta" aria-label="Quick actions">
     <a class="btn" href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">🛒 Buy</a>
-    <a class="btn secondary" href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0fbeb068FE405A" target="_blank" rel="noopener">🔒 Lock</a>
+    <a class="btn secondary" href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">🔒 Lock</a>
     <a class="btn secondary" href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank" rel="noopener">📈 Chart</a>
   </div>
 
@@ -135,7 +169,6 @@ footer{margin:18px 0;color:#9aa0a6}
       setTimeout(()=>t.classList.remove('show'),1500)
     }
 
-    // FIXED: async + try/catch to avoid stray catch syntax errors
     async function copyContract(){
       try{
         const el=document.getElementById('contractAddr');
@@ -147,7 +180,6 @@ footer{margin:18px 0;color:#9aa0a6}
       }
     }
 
-    // lightweight self-tests (won't affect UI)
     document.addEventListener('DOMContentLoaded',()=>{
       const expected='0xFeF80dbC16251862b82286864D77aFA08ECBcb5C';
       console.assert(document.getElementById('contractAddr')?.textContent?.includes(expected),'[TEST] Contract address not rendered');
@@ -158,25 +190,4 @@ footer{margin:18px 0;color:#9aa0a6}
   </script>
 
   <script>
-    function openInMetaMask(){
-      try{ window.location.href='https://metamask.app.link/dapp/'+location.host+location.pathname; }catch(e){ alert('Откройте сайт внутри MetaMask Browser.'); }
-    }
-    function openInTrust(){
-      try{ const dappUrl=encodeURIComponent(location.href); window.location.href=`https://link.trustwallet.com/open_url?source=dapp&url=${dappUrl}`; }catch(e){ alert('Откройте сайт внутри Trust Wallet.'); }
-    }
-    async function doConnect(){
-      try{
-        const injected = (window.ethereum);
-        if(!injected){ alert('Установите MetaMask или откройте сайт в Trust Wallet DApp.'); return; }
-        await injected.request?.({ method:'eth_requestAccounts' });
-        const accounts = await injected.request?.({ method:'eth_accounts' });
-        if(accounts && accounts[0]){
-          alert('Кошелёк подключен: '+accounts[0].slice(0,6)+'…'+accounts[0].slice(-4));
-        } else {
-          alert('Не удалось получить адрес кошелька');
-        }
-      }catch(e){ console.error(e); alert('Подключение не удалось'); }
-    }
-  </script>
-</body>
-</html>
+    function open
