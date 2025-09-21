@@ -5,33 +5,37 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>BGB Token • Info</title>
 <link rel="icon" href="logo.png"/>
-
+<meta name="theme-color" content="#0b0f14"/>
 <style>
-:root{--accent:#e60000;--accent2:#cc0000;--ok:#00ff88;--muted:#9aa0a6;--bg:#0b0f14;--card:#101418;--border:#1f2531;--ink:#ffffff;--ink-2:#eaeaea}
+:root{--accent:#e60000;--accent2:#cc0000;--ok:#00ff88;--ok2:#00ff44;--muted:#9aa0a6;--bg:#0b0f14;--card:#101418;--border:#1f2531;--ink:#ffffff;--ink-2:#eaeaea}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
-.overlay{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:22px 14px;gap:12px}
-h1{font-weight:800;font-size:44px;background:linear-gradient(92deg,#ff914d 0%,#ff4d4d 35%,#ff1f1f 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:0.5px}
+body{overflow-x:hidden}
+#bgfx,#matrix{position:fixed;inset:0;z-index:0;pointer-events:none}
+#bgfx{opacity:.3}
+#matrix{opacity:.25}
+.overlay{position:relative;z-index:1;min-height:100%;display:flex;flex-direction:column;align-items:center;padding:22px 14px;gap:12px}
+h1{font-weight:800;font-size:44px;background:linear-gradient(92deg,#ff914d 0%,#ff4d4d 35%,#ff1f1f 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:0.5px;text-shadow:0 0 18px rgba(255,77,77,.75)}
 .subtitle{color:var(--ink-2)}
 .buttons{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
-.btn{padding:12px 20px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 0 10px #e60000;cursor:pointer;text-decoration:none;display:inline-flex;gap:8px;align-items:center;transition:transform .15s ease, box-shadow .2s ease, background .2s ease}
+.btn{padding:12px 20px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 0 14px #ff1f1f;cursor:pointer;text-decoration:none;display:inline-flex;gap:8px;align-items:center;transition:transform .15s ease, box-shadow .2s ease, background .2s ease}
 .btn[disabled]{opacity:.6;cursor:not-allowed}
-.btn:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 0 14px #e60000}
+.btn:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 0 22px #ff3333}
 .btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .btn.secondary{background:#0f1720;border:1px solid #263040;box-shadow:none}
 .btn.secondary:hover{background:#131d28}
 
 .card{width:100%;max-width:1000px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.35);backdrop-filter:saturate(1.1) blur(2px)}
-.hdr{font-weight:800;font-size:20px;margin-bottom:6px}
+.hdr{font-weight:800;font-size:20px;margin-bottom:6px;text-shadow:0 0 10px rgba(0,255,136,.5)}
 .row{font-size:14px;margin:6px 0;opacity:.95}
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 .tag{background:#131a23;border:1px solid #263040;color:#cbd5e1;padding:4px 8px;border-radius:999px;font-size:12px}
-.tag.ok{background:#00ff88;color:#000;border-color:#00cc66;font-weight:700}
-.tag.em{border-color:#ff6a6a;background:#1a0f12;color:#ffdede;font-weight:700}
+.tag.ok{background:var(--ok);color:#000;border-color:var(--ok2);font-weight:700;box-shadow:0 0 16px rgba(0,255,136,.75)}
+.tag.em{border-color:#ff6a6a;background:#1a0f12;color:#ffdede;font-weight:700;box-shadow:0 0 16px rgba(255,80,80,.75)}
 .badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px}
 .badge{padding:6px 10px;border-radius:999px;border:1px solid #263040;background:#0d141c;font-size:12px;color:#d7dee7}
-.badge.ok{background:#00ff88;color:#000;border-color:#00cc66;font-weight:700}
-.badge.em{border-color:#ff6a6a;background:#1a0f12;color:#ffdede;font-weight:700}
+.badge.ok{background:var(--ok);color:#000;border-color:var(--ok2);font-weight:700;box-shadow:0 0 18px rgba(0,255,136,.75)}
+.badge.em{border-color:#ff6a6a;background:#1a0f12;color:#ffdede;font-weight:700;box-shadow:0 0 18px rgba(255,80,80,.75)}
 footer{margin:18px 0;color:#9aa0a6}
 
 .code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b0f14;border:1px solid #223043;border-radius:10px;padding:8px 10px;display:inline-block}
@@ -51,6 +55,8 @@ footer{margin:18px 0;color:#9aa0a6}
 </style>
 </head>
 <body>
+  <canvas id="matrix" aria-hidden="true"></canvas>
+  <canvas id="bgfx" aria-hidden="true"></canvas>
   <div class="overlay">
     <h1>BGB Token</h1>
 
@@ -96,7 +102,7 @@ footer{margin:18px 0;color:#9aa0a6}
         <div class="box">
           <div class="hdr">Где купить</div>
           <ul>
-            <li><a href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">PancakeSwap</a> — пара BGB/BNB.</li>
+            <li><a href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">Покупка на PancakeSwap</a></li>
             <li>Не забудь пополнить BNB (BEP-20) для оплаты газа.</li>
           </ul>
         </div>
@@ -108,9 +114,8 @@ footer{margin:18px 0;color:#9aa0a6}
           <div class="hdr">Прозрачность</div>
           <p>Ликвидность заморожена: <a href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">Сертификат Mudra</a>. Проверяй перед взаимодействием — это гарантия безопасности.</p>
           <div style="margin-top:12px">
-            <!-- HostCiti.net -->
             <a href="http://hostciti.net/" title="hostciti.net" target="_blank" onclick="this.href='http://hostciti.net/stat/?ch=stat'+'&r='+escape(window.location.href.slice(7));" >
-            <script type="text/javascript" language="javascript"><!--
+            <script type="text/javascript" language="javascript">
             Coun='<img src="http://hostciti.net/stat/stat.php?i=2&col=4d95bf&tc=ffffff';
             iD=document; Coun+='&d='+(screen.colorDepth?screen.colorDepth:screen.pixelDepth)
             +"&w="+screen.width+'&h='+screen.height;
@@ -119,7 +124,6 @@ footer{margin:18px 0;color:#9aa0a6}
             Coun+='&n='+escape(iD.referrer.slice(7));
             iD.write(Coun+'" width="88" height="31" border="0" />');
             </script></a>
-            <!-- End of HostCiti.net counter -->
           </div>
         </div>
       </div>
@@ -137,8 +141,6 @@ footer{margin:18px 0;color:#9aa0a6}
               </li>
             </ul>
           </li>
-          <li><b>Примечание:</b> замороженные LP‑токены <i>не уменьшают</i> обращение, но защищают ликвидность от вывода.</li>
-          <li style="margin-top:6px"><b>Circulating Supply (оценка):</b> Total − 150,099 − (доп.локи владельца по данным Mudра) = <i>см. актуальные данные в отчётах</i>.</li>
         </ul>
       </div>
 
@@ -150,44 +152,56 @@ footer{margin:18px 0;color:#9aa0a6}
       </div>
     </div>
 
-    <footer>© 2025 BGB Token</footer>
-  </div>
-
-  <div id="toast" class="toast" role="status" aria-live="polite">Скопировано</div>
-  <div class="sticky-cta" aria-label="Quick actions">
-    <a class="btn" href="https://pancakeswap.finance/swap?chain=bsc&outputCurrency=0xFeF80dbC16251862b82286864D77aFA08ECBcb5C" target="_blank" rel="noopener">🛒 Buy</a>
-    <a class="btn secondary" href="https://mudra.website/?certificate=yes&type=0&lp=0x5d498D6A3A36187E4c22C5628b0FbEb068FE405A" target="_blank" rel="noopener">🔒 Lock</a>
-    <a class="btn secondary" href="https://www.geckoterminal.com/ru/bsc/pools/0x5d498d6a3a36187e4c22c5628b0fbeb068fe405a" target="_blank" rel="noopener">📈 Chart</a>
-  </div>
-
   <script>
-    function toast(msg){
-      const t=document.getElementById('toast');
-      if(!t) return;
-      t.textContent=msg||'Готово';
-      t.classList.add('show');
-      setTimeout(()=>t.classList.remove('show'),1500)
-    }
-
-    async function copyContract(){
-      try{
-        const el=document.getElementById('contractAddr');
-        const addr=el?el.textContent.trim():'0xFeF80dbC16251862b82286864D77aFA08ECBcb5C';
-        await navigator.clipboard.writeText(addr);
-        toast('Адрес скопирован');
-      }catch(e){
-        toast('Скопируйте вручную');
+    (function(){
+      var c=document.getElementById('bgfx');
+      if(!c) return; var ctx=c.getContext('2d');
+      function rs(){c.width=innerWidth; c.height=innerHeight}
+      rs(); addEventListener('resize',rs);
+      var dots=[]; var N=80; var maxV=0.4; var L=130;
+      for(var i=0;i<N;i++){
+        dots.push({x:Math.random()*c.width,y:Math.random()*c.height,vx:(Math.random()*2-1)*maxV,vy:(Math.random()*2-1)*maxV});
       }
-    }
+      function step(){
+        ctx.clearRect(0,0,c.width,c.height);
+        for(var i=0;i<dots.length;i++){
+          var d=dots[i]; d.x+=d.vx; d.y+=d.vy;
+          if(d.x<0||d.x>c.width) d.vx*=-1; if(d.y<0||d.y>c.height) d.vy*=-1;
+          ctx.beginPath(); ctx.arc(d.x,d.y,1.3,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,.8)'; ctx.fill();
+        }
+        for(var i=0;i<dots.length;i++){
+          for(var j=i+1;j<dots.length;j++){
+            var a=dots[i],b=dots[j]; var dx=a.x-b.x, dy=a.y-b.y; var dist=Math.hypot(dx,dy);
+            if(dist<L){ var o=(1-dist/L); ctx.strokeStyle='rgba(0,255,136,'+o+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+          }
+        }
+        requestAnimationFrame(step);
+      }
+      step();
+    })();
 
-    document.addEventListener('DOMContentLoaded',()=>{
-      const expected='0xFeF80dbC16251862b82286864D77aFA08ECBcb5C';
-      console.assert(document.getElementById('contractAddr')?.textContent?.includes(expected),'[TEST] Contract address not rendered');
-      console.assert(document.querySelector('a[href*="bscscan.com/token/"]'), '[TEST] BscScan link missing');
-      console.assert(document.querySelector('a[href*="pancakeswap.finance/swap"]'), '[TEST] PancakeSwap link missing');
-      console.assert(document.querySelector('a[href*="mudra.website/"]'), '[TEST] Mudra link missing');
-    });
+    (function(){
+      var c=document.getElementById('matrix');
+      if(!c) return; var ctx=c.getContext('2d');
+      var w=c.width=innerWidth, h=c.height=innerHeight;
+      var cols=Math.floor(w/20)+1;
+      var ypos=Array(cols).fill(0);
+      function rs(){w=c.width=innerWidth; h=c.height=innerHeight; cols=Math.floor(w/20)+1; ypos=Array(cols).fill(0)}
+      addEventListener('resize',rs);
+      function matrix(){
+        ctx.fillStyle='rgba(0,0,0,.15)';
+        ctx.fillRect(0,0,w,h);
+        ctx.fillStyle='#0f0';
+        ctx.font='15pt monospace';
+        for(var i=0;i<ypos.length;i++){
+          var text=String.fromCharCode(0x30A0+Math.random()*96);
+          ctx.fillText(text,i*20,ypos[i]);
+          if(ypos[i]>h+Math.random()*10000) ypos[i]=0; else ypos[i]+=20;
+        }
+        requestAnimationFrame(matrix);
+      }
+      matrix();
+    })();
   </script>
-
-  <script>
-    function open
+</body>
+</html>
